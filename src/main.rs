@@ -8,7 +8,6 @@ mod ui;
 use std::io;
 use std::path::PathBuf;
 use std::sync::mpsc;
-use std::thread;
 use std::time::Duration;
 
 use clap::Parser;
@@ -29,6 +28,10 @@ struct Cli {
     /// Name of the directory to hunt for.
     #[arg(short, long, default_value = "node_modules")]
     target: String,
+
+    /// Skip the confirmation dialog and delete immediately.
+    #[arg(short = 'y', long)]
+    yes: bool,
 }
 
 fn main() -> io::Result<()> {
@@ -37,16 +40,10 @@ fn main() -> io::Result<()> {
 
     let (tx, rx) = mpsc::channel::<Msg>();
 
-    // Kick off the scanner on a background thread.
-    {
-        let tx = tx.clone();
-        let root = root.clone();
-        let target = cli.target.clone();
-        thread::spawn(move || scanner::scan(root, target, tx));
-    }
+    let mut app = App::new(root, cli.target, tx, !cli.yes);
+    app.start_scan();
 
     let mut terminal = ratatui::init();
-    let mut app = App::new(root, cli.target, tx);
     let result = run(&mut terminal, &mut app, &rx);
     ratatui::restore();
     result
@@ -66,14 +63,34 @@ fn run(terminal: &mut DefaultTerminal, app: &mut App, rx: &mpsc::Receiver<Msg>) 
             && let Event::Key(key) = event::read()?
             && key.kind == KeyEventKind::Press
         {
-            match key.code {
-                KeyCode::Char('q') | KeyCode::Esc => break,
-                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
-                KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                KeyCode::Down | KeyCode::Char('j') => app.next(),
-                KeyCode::Char(' ') | KeyCode::Delete | KeyCode::Enter => app.delete_selected(),
-                KeyCode::Char('s') => app.toggle_sort(),
-                _ => {}
+            // Ctrl-C always exits, whatever is on screen.
+            if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                break;
+            }
+
+            if app.confirm.is_some() {
+                match key.code {
+                    KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
+                    KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => app.cancel_confirm(),
+                    _ => {}
+                }
+            } else if app.summary {
+                match key.code {
+                    KeyCode::Char('r') | KeyCode::Char('R') => app.start_scan(),
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => break,
+                    _ => {}
+                }
+            } else {
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => app.show_summary(),
+                    KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                    KeyCode::Down | KeyCode::Char('j') => app.next(),
+                    KeyCode::Char(' ') => app.toggle_mark(),
+                    KeyCode::Char('a') | KeyCode::Char('A') => app.toggle_all(),
+                    KeyCode::Enter | KeyCode::Delete => app.request_delete(),
+                    KeyCode::Char('s') | KeyCode::Char('S') => app.toggle_sort(),
+                    _ => {}
+                }
             }
         }
 

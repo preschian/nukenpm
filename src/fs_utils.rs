@@ -4,12 +4,20 @@ use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 
-/// Compute the total size (in bytes) of a directory by walking it iteratively.
+/// Aggregate size and file count of a directory.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct DirStats {
+    pub size: u64,
+    pub files: u64,
+}
+
+/// Compute the total size (in bytes) and file count of a directory by walking
+/// it iteratively.
 ///
 /// Symbolic links are never followed, which keeps us safe from cycles and avoids
 /// counting files that live outside the tree.
-pub fn dir_size(path: &Path) -> u64 {
-    let mut total: u64 = 0;
+pub fn dir_stats(path: &Path) -> DirStats {
+    let mut stats = DirStats::default();
     let mut stack = vec![path.to_path_buf()];
 
     while let Some(dir) = stack.pop() {
@@ -27,12 +35,13 @@ pub fn dir_size(path: &Path) -> u64 {
             } else if file_type.is_file()
                 && let Ok(meta) = entry.metadata()
             {
-                total += meta.len();
+                stats.size += meta.len();
+                stats.files += 1;
             }
         }
     }
 
-    total
+    stats
 }
 
 /// Format a byte count as a compact, human-readable string (e.g. `1.4 GB`).
@@ -49,6 +58,33 @@ pub fn human_size(bytes: u64) -> String {
     } else {
         format!("{size:.1} {}", UNITS[unit])
     }
+}
+
+/// Insert thousands separators into a number (e.g. `41208` → `41,208`).
+pub fn format_thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let len = digits.len();
+    let mut out = String::with_capacity(len + len / 3);
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (len - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// Whether a directory hasn't been touched in more than roughly six months.
+///
+/// Used to gently highlight stale directories that are the safest to reclaim.
+pub fn is_stale(modified: Option<SystemTime>) -> bool {
+    let Some(time) = modified else {
+        return false;
+    };
+    let Ok(elapsed) = SystemTime::now().duration_since(time) else {
+        return false;
+    };
+    elapsed.as_secs() / 86_400 > 180
 }
 
 /// Format a modification time as a short relative age (e.g. `3d`, `2mo`, `1y`).
@@ -87,13 +123,24 @@ mod tests {
     }
 
     #[test]
-    fn dir_size_sums_files_recursively() {
+    fn dir_stats_sums_files_recursively() {
         let base = std::env::temp_dir().join(format!("nukenpm-size-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(base.join("a/b")).unwrap();
         fs::write(base.join("a/one.txt"), b"1234").unwrap(); // 4 bytes
         fs::write(base.join("a/b/two.txt"), b"567").unwrap(); // 3 bytes
-        assert_eq!(dir_size(&base), 7);
+        let stats = dir_stats(&base);
+        assert_eq!(stats.size, 7);
+        assert_eq!(stats.files, 2);
         let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn format_thousands_groups_digits() {
+        assert_eq!(format_thousands(0), "0");
+        assert_eq!(format_thousands(42), "42");
+        assert_eq!(format_thousands(1_000), "1,000");
+        assert_eq!(format_thousands(41_208), "41,208");
+        assert_eq!(format_thousands(1_234_567), "1,234,567");
     }
 }

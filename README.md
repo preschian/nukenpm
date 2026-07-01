@@ -9,10 +9,13 @@ An interactive terminal UI to find and **nuke** heavy directories like
 
 - 🔍 Recursively scans for `node_modules` (or any directory name you choose)
 - ⚡ Background scanning — the UI stays responsive while a huge tree is walked
-- 📦 Shows each directory's size and last-modified age
-- 🗑️ Delete directories interactively; deletions run off the UI thread
-- 📊 Live totals: how much is reclaimable and how much you've freed
-- 🔀 Sort by size, path, or age
+- 📦 Shows each directory's size, file count and last-modified age
+- ✅ Multi-select several directories, then reclaim them in one pass
+- 🛡️ A confirmation dialog (with size + file totals) before anything is deleted
+- 🗑️ Deletions run off the UI thread, so the interface never blocks
+- 📊 Live "reclaimable" readout, plus a session summary of what you freed
+- 🔀 Sort by size, modified time, or path
+- 🕰️ Stale directories (untouched for 6+ months) are gently highlighted
 
 ## Install / Build
 
@@ -33,17 +36,26 @@ nukenpm ~/code
 # hunt for a different directory name
 nukenpm ~/code --target target      # Rust build dirs
 nukenpm ~/projects -t .venv          # Python virtualenvs
+
+# delete without the confirmation dialog
+nukenpm ~/projects --yes
 ```
 
 ### Keybindings
 
-| Key            | Action              |
-| -------------- | ------------------- |
-| `↑` / `k`      | Move up             |
-| `↓` / `j`      | Move down           |
-| `space` / `del` / `enter` | Delete selected directory |
-| `s`            | Cycle sort mode (size → path → age) |
-| `q` / `esc` / `ctrl-c` | Quit        |
+| Key                    | Action                                  |
+| ---------------------- | --------------------------------------- |
+| `↑` / `k`, `↓` / `j`   | Move the cursor                         |
+| `space`                | Select / deselect the highlighted row   |
+| `a`                    | Select all / clear the selection        |
+| `enter` / `del`        | Delete the selection (or cursor row)    |
+| `s`                    | Cycle sort mode (size → modified → path) |
+| `q` / `esc`            | Show the session summary                |
+| `ctrl-c`               | Quit immediately                        |
+
+In the confirmation dialog, `enter` / `y` confirms and `esc` / `n` cancels.
+On the summary screen, `r` scans again and `q` / `esc` quits. Pass `--yes` to
+skip confirmation entirely.
 
 ## How it works
 
@@ -53,6 +65,8 @@ nukenpm ~/projects -t .venv          # Python virtualenvs
 - Deletions are spawned onto their own threads and stream their result back, so
   the interface never blocks while a large tree is removed.
 - Symlinks are never followed, avoiding cycles and off-tree files.
+- When every discovered directory has been reclaimed, the session summary
+  appears automatically; press `r` to scan again.
 
 ## Development
 
