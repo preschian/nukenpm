@@ -5,7 +5,9 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{self, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::SystemTime;
 
 use crate::fs_utils::dir_stats;
@@ -33,7 +35,56 @@ pub enum Msg {
 ///
 /// When a match is found we record its size but do **not** descend into it,
 /// which is both faster and avoids reporting nested `node_modules`.
+///
+/// The cheap part — walking the project tree to *discover* matches — runs on
+/// this thread. The expensive part — sizing each match, which descends into a
+/// huge subtree — is offloaded to a pool of worker threads so several matches
+/// are measured concurrently. Because the UI re-sorts on every `Found`, the
+/// non-deterministic arrival order is fine.
 pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
+    // Size the pool to the machine, but keep it modest: this work is I/O bound
+    // and too many threads just thrash the disk.
+    let workers = thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .clamp(2, 8);
+
+    // Job queue feeding the sizing workers. A single receiver is shared behind a
+    // mutex so any idle worker can grab the next match.
+    let (job_tx, job_rx) = mpsc::channel::<PathBuf>();
+    let job_rx = Arc::new(Mutex::new(job_rx));
+
+    let mut handles = Vec::with_capacity(workers);
+    for _ in 0..workers {
+        let job_rx = Arc::clone(&job_rx);
+        let tx = tx.clone();
+        handles.push(thread::spawn(move || {
+            loop {
+                // Hold the lock only long enough to pull one path.
+                let path = {
+                    let Ok(guard) = job_rx.lock() else { return };
+                    match guard.recv() {
+                        Ok(path) => path,
+                        Err(_) => return, // Queue closed and drained.
+                    }
+                };
+                let stats = dir_stats(&path);
+                let modified = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
+                if tx
+                    .send(Msg::Found {
+                        path,
+                        size: stats.size,
+                        files: stats.files,
+                        modified,
+                    })
+                    .is_err()
+                {
+                    return; // UI gone, stop working.
+                }
+            }
+        }));
+    }
+
     let mut stack = vec![root];
     let mut count: u64 = 0;
 
@@ -61,24 +112,22 @@ pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
 
             let path = entry.path();
             if entry.file_name() == *target.as_str() {
-                let stats = dir_stats(&path);
-                let modified = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
-                if tx
-                    .send(Msg::Found {
-                        path,
-                        size: stats.size,
-                        files: stats.files,
-                        modified,
-                    })
-                    .is_err()
-                {
-                    return; // UI gone, stop working.
+                // Hand the expensive sizing off to a worker; keep walking.
+                if job_tx.send(path).is_err() {
+                    break; // Workers gone, nothing left to do.
                 }
                 // Do not descend into a matched directory.
             } else {
                 stack.push(path);
             }
         }
+    }
+
+    // Closing the queue lets workers exit once every pending match is sized;
+    // joining them guarantees all `Found` messages are sent before `Done`.
+    drop(job_tx);
+    for handle in handles {
+        let _ = handle.join();
     }
 
     let _ = tx.send(Msg::Done);
