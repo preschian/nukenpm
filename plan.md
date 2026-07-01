@@ -134,8 +134,8 @@ nukenpm --version
 
 ## Checklist
 
-- [ ] `cli/Cargo.toml` metadata + `--version` works
-- [ ] `.github/workflows/release.yml` (build matrix + release + checksum)
+- [x] `cli/Cargo.toml` metadata + `--version` works
+- [x] `.github/workflows/release.yml` (build matrix + release + checksum)
 - [ ] `preschian/homebrew-tap` repo created
 - [ ] `Formula/nukenpm.rb` (binary, per-platform, no `depends_on rust`)
 - [ ] Tag `v0.1.0` → first release
