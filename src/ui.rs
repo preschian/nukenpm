@@ -32,10 +32,18 @@ const DANGER: Color = Color::Rgb(0xe0, 0x8a, 0x7a);
 const CURSOR_BG: Color = Color::Rgb(0x24, 0x2a, 0x32);
 
 /// Shared column layout for the header and every row.
-const COLS: [Constraint; 3] = [
-    Constraint::Min(10),
-    Constraint::Length(14),
-    Constraint::Length(9),
+// The table spans the full inner width so the row highlight bleeds edge-to-edge.
+// Empty gutter/gap columns re-create the side padding and inter-column spacing
+// without insetting the table area, so the highlight bar still touches the
+// panel borders. Because spacing lives in these columns, column_spacing is 0.
+const COLS: [Constraint; 7] = [
+    Constraint::Length(2),  // left gutter
+    Constraint::Min(10),    // PATH
+    Constraint::Length(2),  // gap
+    Constraint::Length(14), // MODIFIED
+    Constraint::Length(2),  // gap
+    Constraint::Length(9),  // SIZE
+    Constraint::Length(2),  // right gutter
 ];
 
 pub fn render(frame: &mut Frame, app: &App) {
@@ -45,7 +53,6 @@ pub fn render(frame: &mut Frame, app: &App) {
     // single dark surface regardless of the host terminal theme.
     frame.render_widget(Block::default().style(Style::default().bg(PANEL_BG)), area);
 
-    let title_dots = Span::styled("● ● ●", Style::default().fg(DIM));
     let title_path = Span::styled(
         format!("nukenpm — {}", app.root.display()),
         Style::default().fg(MUTED),
@@ -55,7 +62,6 @@ pub fn render(frame: &mut Frame, app: &App) {
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(BORDER))
         .style(Style::default().bg(PANEL_BG))
-        .title(Line::from(title_dots))
         .title(Line::from(title_path).centered());
     let inner = panel.inner(area);
     frame.render_widget(panel, area);
@@ -82,7 +88,15 @@ pub fn render(frame: &mut Frame, app: &App) {
 
     render_header(frame, app, rows[1]);
     render_progress(frame, app, rows[2]);
-    render_table(frame, app, rows[4]);
+    // The table renders across the full inner width (not the padded region) so
+    // its row highlight bleeds edge-to-edge; padding is handled by gutter columns.
+    let table_area = Rect {
+        x: inner.x,
+        y: rows[4].y,
+        width: inner.width,
+        height: rows[4].height,
+    };
+    render_table(frame, app, table_area);
     render_footer(frame, app, rows[6]);
 
     if app.confirm.is_some() {
@@ -100,7 +114,7 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
     let title = Line::from(vec![
         Span::styled(format!("{glyph} "), Style::default().fg(ACCENT)),
         Span::styled("nukenpm ", Style::default().fg(FG)),
-        Span::styled("v1.0", Style::default().fg(DIM)),
+        Span::styled(concat!("v", env!("CARGO_PKG_VERSION")), Style::default().fg(DIM)),
     ]);
 
     let status = if app.scanning {
@@ -167,20 +181,31 @@ fn render_table(frame: &mut Frame, app: &App, area: Rect) {
         } else {
             "Nothing found — you're all clean 🎉"
         };
+        let msg_area = Rect {
+            x: area.x + 2,
+            y: area.y,
+            width: area.width.saturating_sub(4),
+            height: area.height,
+        };
         frame.render_widget(
             Paragraph::new(msg).style(Style::default().fg(DIM)),
-            area,
+            msg_area,
         );
         return;
     }
 
     let arrow = |active: bool| if active { " ▼" } else { "" };
+    let gutter = || Cell::from("");
     let header = Row::new([
+        gutter(),
         Cell::from(Line::from(format!("PATH{}", arrow(app.sort == SortMode::Path)))),
+        gutter(),
         Cell::from(
             Line::from(format!("MODIFIED{}", arrow(app.sort == SortMode::Modified))).right_aligned(),
         ),
+        gutter(),
         Cell::from(Line::from(format!("SIZE{}", arrow(app.sort == SortMode::Size))).right_aligned()),
+        gutter(),
     ])
     .style(Style::default().fg(DIM))
     .bottom_margin(1);
@@ -241,12 +266,20 @@ fn render_table(frame: &mut Frame, app: &App, area: Rect) {
         let size_cell = Cell::from(Line::from(size_text).right_aligned())
             .style(Style::default().fg(size_color).add_modifier(weight));
 
-        Row::new([path_cell, mod_cell, size_cell])
+        Row::new([
+            gutter(),
+            path_cell,
+            gutter(),
+            mod_cell,
+            gutter(),
+            size_cell,
+            gutter(),
+        ])
     });
 
     let table = Table::new(rows, COLS)
         .header(header)
-        .column_spacing(2)
+        .column_spacing(0)
         .row_highlight_style(Style::default().bg(CURSOR_BG));
 
     let mut state = TableState::default();
