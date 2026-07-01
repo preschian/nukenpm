@@ -143,4 +143,4 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Rust
-/target
+cli/target/
