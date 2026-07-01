@@ -8,16 +8,17 @@ use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::time::SystemTime;
 
-use crate::fs_utils::dir_size;
+use crate::fs_utils::dir_stats;
 
 /// Messages sent from worker threads (scanner + deleters) to the UI loop.
 pub enum Msg {
     /// Progress heartbeat: directory currently being walked and dirs seen so far.
     Scanning { path: PathBuf, count: u64 },
-    /// A target directory was found, together with its size and mtime.
+    /// A target directory was found, together with its size, file count and mtime.
     Found {
         path: PathBuf,
         size: u64,
+        files: u64,
         modified: Option<SystemTime>,
     },
     /// The scan finished walking the whole tree.
@@ -60,9 +61,17 @@ pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
 
             let path = entry.path();
             if entry.file_name() == *target.as_str() {
-                let size = dir_size(&path);
+                let stats = dir_stats(&path);
                 let modified = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
-                if tx.send(Msg::Found { path, size, modified }).is_err() {
+                if tx
+                    .send(Msg::Found {
+                        path,
+                        size: stats.size,
+                        files: stats.files,
+                        modified,
+                    })
+                    .is_err()
+                {
                     return; // UI gone, stop working.
                 }
                 // Do not descend into a matched directory.
