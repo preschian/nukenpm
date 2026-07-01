@@ -63,3 +63,47 @@ jobs:
             "${{ steps.package.outputs.archive }}" \
             "${{ steps.package.outputs.archive }}.sha256" \
             --clobber
+
+  bump-formula:
+    name: Bump Homebrew formula
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Render formula from template
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          export VERSION="${GITHUB_REF_NAME#v}"
+          tmp="$(mktemp -d)"
+          gh release download "$GITHUB_REF_NAME" -p '*.sha256' -D "$tmp"
+          sha() { awk '{print $1}' "$tmp/${BIN_NAME}-${VERSION}-$1.tar.gz.sha256"; }
+          export SHA_AARCH64_APPLE_DARWIN="$(sha aarch64-apple-darwin)"
+          export SHA_X86_64_APPLE_DARWIN="$(sha x86_64-apple-darwin)"
+          export SHA_X86_64_UNKNOWN_LINUX_GNU="$(sha x86_64-unknown-linux-gnu)"
+          envsubst '${VERSION} ${SHA_AARCH64_APPLE_DARWIN} ${SHA_X86_64_APPLE_DARWIN} ${SHA_X86_64_UNKNOWN_LINUX_GNU}' \
+            < .github/nukenpm-formula.rb.tmpl > nukenpm.rb
+          echo "--- rendered formula ---"
+          cat nukenpm.rb
+
+      - name: Commit and push to tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/preschian/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          cp nukenpm.rb tap/Formula/nukenpm.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- Formula/nukenpm.rb; then
+            echo "Formula already up to date."
+          else
+            git add Formula/nukenpm.rb
+            git commit -m "chore: bump nukenpm to ${version}"
+            git push
+          fi

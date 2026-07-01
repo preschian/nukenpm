@@ -152,7 +152,7 @@ nukenpm --version
 
 Follow-ups (optional):
 
-- [ ] Automate formula version + SHA256 bump on each release (phase 2)
+- [x] Automate formula version + SHA256 bump on each release (phase 2)
 - [ ] Add `aarch64-unknown-linux-gnu` target to the build matrix
 
 ---
@@ -180,8 +180,23 @@ Follow-ups (optional):
 ## Making a new release
 
 1. Bump `version` in `cli/Cargo.toml` (commit).
-2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` → `release.yml`
-   builds and publishes the assets.
-3. In `preschian/homebrew-tap`, update `Formula/nukenpm.rb`: bump `version` and
-   replace the three `sha256` values (fetch from the release's `.sha256` files).
-   Until the phase-2 automation lands, this step is manual.
+2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+That's it. `release.yml` then:
+- builds + publishes the three platform tarballs and checksums, and
+- the `bump-formula` job renders `.github/nukenpm-formula.rb.tmpl` with the new
+  version + SHA256s and pushes `Formula/nukenpm.rb` to `preschian/homebrew-tap`.
+
+### One-time setup for the auto-bump
+
+The `bump-formula` job pushes to a *different* repo, which the default
+`GITHUB_TOKEN` cannot do. Create a **fine-grained PAT** with access to
+`preschian/homebrew-tap` only, `Contents: Read and write`, and store it as an
+Actions secret named `HOMEBREW_TAP_TOKEN` in `preschian/nukenpm`:
+
+```bash
+gh secret set HOMEBREW_TAP_TOKEN -R preschian/nukenpm
+```
+
+The canonical formula lives in `.github/nukenpm-formula.rb.tmpl`; edit the
+formula there (not in the tap), since the tap copy is regenerated each release.
