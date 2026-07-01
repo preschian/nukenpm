@@ -1,10 +1,14 @@
 # Plan: Homebrew Distribution (pre-built binary)
 
+> **Status: ✅ Shipped (v0.1.0).** `brew install preschian/tap/nukenpm` works on
+> a machine without a Rust toolchain. Remaining work is optional automation
+> (auto-bumping the formula on each release — see "Automate formula updates").
+
 **Goal:** Users without a Rust toolchain can `brew install` and immediately run
 the `nukenpm` binary. This means Homebrew must **not** compile from source — the
 formula must download an already-built binary.
 
-Target install command:
+Install command:
 
 ```bash
 brew install preschian/tap/nukenpm
@@ -69,8 +73,11 @@ Trigger: `push` on `v*` tags.
 - Package each binary into a tarball: `nukenpm-<version>-<target>.tar.gz`
   (contains: the `nukenpm` binary + LICENSE + README).
 - Compute the SHA256 of each tarball.
-- Create a GitHub Release (e.g. `softprops/action-gh-release`) and upload all
-  tarballs + checksums.
+- Create the GitHub Release and upload all tarballs + checksums using the
+  pre-installed **`gh` CLI** (`gh release create ... || true` + `gh release
+  upload ... --clobber`) — no third-party action, no Node.js deprecation
+  warning. Uses the auto-provided `GITHUB_TOKEN` with `permissions: contents:
+  write`.
 
 ### 3. Tap repo `preschian/homebrew-tap`
 Create a new repo (name **must** start with `homebrew-`). Add
@@ -136,20 +143,45 @@ nukenpm --version
 
 - [x] `cli/Cargo.toml` metadata + `--version` works
 - [x] `.github/workflows/release.yml` (build matrix + release + checksum)
-- [ ] `preschian/homebrew-tap` repo created
-- [ ] `Formula/nukenpm.rb` (binary, per-platform, no `depends_on rust`)
-- [ ] Tag `v0.1.0` → first release
-- [ ] Fill SHA256 into the formula
-- [ ] Test `brew install` on a machine without Rust
+- [x] `preschian/homebrew-tap` repo created
+- [x] `Formula/nukenpm.rb` (binary, per-platform, no `depends_on rust`)
+- [x] Tag `v0.1.0` → first release
+- [x] Fill SHA256 into the formula
+- [x] Test `brew install` on a machine without Rust
+- [x] `preschian/nukenpm` made public (required — see Notes)
+
+Follow-ups (optional):
+
+- [ ] Automate formula version + SHA256 bump on each release (phase 2)
+- [ ] Add `aarch64-unknown-linux-gnu` target to the build matrix
 
 ---
 
 ## Notes
 
+- **The source repo must be public.** Homebrew downloads release assets
+  anonymously; on a private repo the asset URLs return `404` even though the
+  API lists them, so `brew install` fails. `preschian/nukenpm` was made public
+  to fix this. (If the source must stay private, host the tarballs in a
+  separate public repo instead.)
 - The Cargo project now lives under `cli/`, so every build step uses
   `working-directory: cli` or `--manifest-path cli/Cargo.toml`.
+- The release tarball wraps the binary in a top-level `nukenpm-<version>-<target>/`
+  directory; Homebrew descends into that single dir automatically, so
+  `bin.install "nukenpm"` works as-is.
+- Installing from a fresh third-party tap prints a "Tap-Trust" warning — this is
+  expected and does not block the install.
 - Homebrew-core (vs. a tap) requires notability (stars/forks/age) — not
   realistic early on. A personal tap is enough and still satisfies the
   "without Rust" requirement.
 - macOS binaries are not code-signed/notarized; if Gatekeeper complains about
   non-brew downloads later, consider signing (out of scope for brew).
+
+## Making a new release
+
+1. Bump `version` in `cli/Cargo.toml` (commit).
+2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` → `release.yml`
+   builds and publishes the assets.
+3. In `preschian/homebrew-tap`, update `Formula/nukenpm.rb`: bump `version` and
+   replace the three `sha256` values (fetch from the release's `.sha256` files).
+   Until the phase-2 automation lands, this step is manual.
