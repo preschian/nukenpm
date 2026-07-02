@@ -19,7 +19,7 @@ const jsonLd = {
 	url: SITE.url,
 	applicationCategory: 'DeveloperApplication',
 	operatingSystem: 'macOS, Linux',
-	softwareVersion: '1.0',
+	softwareVersion: SITE.version,
 	license: 'https://opensource.org/licenses/MIT',
 	offers: {
 		'@type': 'Offer',
@@ -27,7 +27,7 @@ const jsonLd = {
 		priceCurrency: 'USD',
 	},
 	downloadUrl: SITE.github,
-	installUrl: SITE.github,
+	installUrl: SITE.homebrew,
 	codeRepository: SITE.github,
 };
 ---
@@ -45,7 +45,7 @@ const jsonLd = {
 		<link rel="canonical" href={canonical} />
 
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="apple-touch-icon" href="/og-image.png" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content={canonical} />
