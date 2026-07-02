@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "bun run build && wrangler dev",
+    "check": "astro check",
     "astro": "astro",
     "generate-types": "wrangler types",
     "deploy": "bun run build && wrangler deploy"
@@ -16,9 +17,13 @@
   "dependencies": {
     "@astrojs/cloudflare": "^14.1.0",
     "@astrojs/sitemap": "^3.7.3",
+    "@fontsource/inter": "^5.2.6",
+    "@fontsource/jetbrains-mono": "^5.2.6",
     "astro": "^7.0.5"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "typescript": "^5.9.3",
     "wrangler": "^4.106.0"
   }
 }

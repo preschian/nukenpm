@@ -1,0 +1,30 @@
+---
+import { SITE } from '../config/site';
+
+interface Props {
+	variant?: 'hero' | 'cta';
+}
+
+const { variant = 'hero' } = Astro.props;
+const { install } = SITE;
+const bg = variant === 'hero' ? '#14161a' : '#0d0e11';
+const border = variant === 'hero' ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.12)';
+const shadow = variant === 'hero' ? 'box-shadow:0 16px 40px rgba(0,0,0,.35);' : '';
+---
+
+<div style={`display:flex;justify-content:center;padding:0 16px${variant === 'hero' ? ';margin-bottom:14px' : ''}`}>
+	<div
+		class="install-box"
+		style={`display:flex;align-items:center;gap:14px;max-width:100%;background:${bg};border:1px solid ${border};border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px;${shadow}`}
+	>
+		<span style="color:#5c626c;user-select:none;flex:none">$</span>
+		<span class="install-cmd" style="color:#e6e8ec;min-width:0;word-break:break-all">{install}</span>
+		<button
+			class="copy-btn"
+			data-copy={install}
+			aria-label="Copy install command"
+			style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s"
+			>copy</button
+		>
+	</div>
+</div>
