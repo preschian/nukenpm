@@ -3,6 +3,8 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{self, AtomicBool};
 use std::sync::mpsc::Sender;
 use std::thread;
 use std::time::SystemTime;
@@ -78,6 +80,11 @@ pub struct App {
     /// Whether deletions ask for confirmation first.
     confirm_before_delete: bool,
     spinner_frame: usize,
+    /// Generation of the current scan; messages stamped with an older value
+    /// come from a superseded scan and are dropped.
+    scan_generation: u64,
+    /// Cancellation flag handed to the running scanner thread.
+    scan_cancel: Arc<AtomicBool>,
     tx: Sender<Msg>,
 }
 
@@ -98,6 +105,8 @@ impl App {
             summary: false,
             confirm_before_delete,
             spinner_frame: 0,
+            scan_generation: 0,
+            scan_cancel: Arc::new(AtomicBool::new(false)),
             tx,
         }
     }
@@ -114,25 +123,45 @@ impl App {
         self.confirm = None;
         self.summary = false;
 
+        // A previous scan may still be running (the summary screen is reachable
+        // mid-scan): tell it to stop and bump the generation so any of its
+        // messages still in flight are discarded.
+        self.scan_cancel.store(true, atomic::Ordering::Relaxed);
+        self.scan_cancel = Arc::new(AtomicBool::new(false));
+        self.scan_generation += 1;
+
         let tx = self.tx.clone();
         let root = self.root.clone();
         let target = self.target.clone();
-        thread::spawn(move || scanner::scan(root, target, tx));
+        let generation = self.scan_generation;
+        let cancel = Arc::clone(&self.scan_cancel);
+        thread::spawn(move || scanner::scan(root, target, tx, generation, cancel));
     }
 
     /// Handle one message coming from a worker thread.
     pub fn handle_msg(&mut self, msg: Msg) {
         match msg {
-            Msg::Scanning { path, count } => {
+            Msg::Scanning {
+                generation,
+                path,
+                count,
+            } => {
+                if generation != self.scan_generation {
+                    return;
+                }
                 self.current_path = Some(path);
                 self.dirs_scanned = count;
             }
             Msg::Found {
+                generation,
                 path,
                 size,
                 files,
                 modified,
             } => {
+                if generation != self.scan_generation {
+                    return;
+                }
                 self.entries.push(Entry {
                     path,
                     size,
@@ -143,7 +172,10 @@ impl App {
                 });
                 self.resort();
             }
-            Msg::Done => {
+            Msg::Done { generation } => {
+                if generation != self.scan_generation {
+                    return;
+                }
                 self.scanning = false;
                 self.current_path = None;
             }
@@ -387,5 +419,33 @@ impl App {
             .filter(|e| e.status != EntryStatus::Deleted)
             .map(|e| e.size)
             .sum()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn stale_scan_messages_are_ignored_after_restart() {
+        let (tx, _rx) = mpsc::channel::<Msg>();
+        let root = std::env::temp_dir();
+        let mut app = App::new(root, "node_modules".into(), tx, true);
+
+        // Restarting bumps the generation; anything stamped with the old one
+        // (a scanner that was still running) must not leak into the session.
+        app.start_scan();
+        app.handle_msg(Msg::Found {
+            generation: 0,
+            path: PathBuf::from("/stale/node_modules"),
+            size: 1,
+            files: 1,
+            modified: None,
+        });
+        assert!(app.entries.is_empty(), "stale Found must be dropped");
+
+        app.handle_msg(Msg::Done { generation: 0 });
+        assert!(app.scanning, "stale Done must not end the new scan");
     }
 }

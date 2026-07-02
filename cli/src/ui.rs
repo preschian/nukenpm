@@ -515,18 +515,20 @@ mod tests {
         let (tx, _rx) = mpsc::channel::<Msg>();
         let mut app = App::new(PathBuf::from("/home/me/projects"), "node_modules".into(), tx, true);
         app.handle_msg(Msg::Found {
+            generation: 0,
             path: PathBuf::from("/home/me/projects/dashboard/node_modules"),
             size: 428 * 1024 * 1024,
             files: 18_400,
             modified: Some(SystemTime::now()),
         });
         app.handle_msg(Msg::Found {
+            generation: 0,
             path: PathBuf::from("/home/me/projects/blog/node_modules"),
             size: 94 * 1024 * 1024,
             files: 3_200,
             modified: Some(SystemTime::now()),
         });
-        app.handle_msg(Msg::Done);
+        app.handle_msg(Msg::Done { generation: 0 });
         app
     }
 

@@ -5,6 +5,7 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -13,18 +14,26 @@ use std::time::SystemTime;
 use crate::fs_utils::dir_stats;
 
 /// Messages sent from worker threads (scanner + deleters) to the UI loop.
+///
+/// Scan messages carry the generation of the scan that produced them, so the
+/// UI can discard leftovers from a superseded scan after a restart.
 pub enum Msg {
     /// Progress heartbeat: directory currently being walked and dirs seen so far.
-    Scanning { path: PathBuf, count: u64 },
+    Scanning {
+        generation: u64,
+        path: PathBuf,
+        count: u64,
+    },
     /// A target directory was found, together with its size, file count and mtime.
     Found {
+        generation: u64,
         path: PathBuf,
         size: u64,
         files: u64,
         modified: Option<SystemTime>,
     },
     /// The scan finished walking the whole tree.
-    Done,
+    Done { generation: u64 },
     /// A deletion completed successfully.
     Deleted { path: PathBuf },
     /// A deletion failed.
@@ -41,7 +50,13 @@ pub enum Msg {
 /// huge subtree — is offloaded to a pool of worker threads so several matches
 /// are measured concurrently. Because the UI re-sorts on every `Found`, the
 /// non-deterministic arrival order is fine.
-pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
+pub fn scan(
+    root: PathBuf,
+    target: String,
+    tx: Sender<Msg>,
+    generation: u64,
+    cancel: Arc<AtomicBool>,
+) {
     // Size the pool to the machine, but keep it modest: this work is I/O bound
     // and too many threads just thrash the disk.
     let workers = thread::available_parallelism()
@@ -72,6 +87,7 @@ pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
                 let modified = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
                 if tx
                     .send(Msg::Found {
+                        generation,
                         path,
                         size: stats.size,
                         files: stats.files,
@@ -89,10 +105,16 @@ pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
     let mut count: u64 = 0;
 
     while let Some(dir) = stack.pop() {
+        // A newer scan superseded this one; its messages are already being
+        // discarded by generation, this just stops the wasted disk churn.
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
         count += 1;
         // Throttle progress updates so we don't flood the channel.
         if count.is_multiple_of(24) {
             let _ = tx.send(Msg::Scanning {
+                generation,
                 path: dir.clone(),
                 count,
             });
@@ -130,7 +152,7 @@ pub fn scan(root: PathBuf, target: String, tx: Sender<Msg>) {
         let _ = handle.join();
     }
 
-    let _ = tx.send(Msg::Done);
+    let _ = tx.send(Msg::Done { generation });
 }
 
 #[cfg(test)]
@@ -153,14 +175,20 @@ mod tests {
         fs::create_dir_all(&nm_b).unwrap();
 
         let (tx, rx) = mpsc::channel();
-        scan(base.clone(), "node_modules".to_string(), tx);
+        scan(
+            base.clone(),
+            "node_modules".to_string(),
+            tx,
+            0,
+            Arc::new(AtomicBool::new(false)),
+        );
 
         let mut found = Vec::new();
         let mut done = false;
         while let Ok(msg) = rx.try_recv() {
             match msg {
                 Msg::Found { path, .. } => found.push(path),
-                Msg::Done => done = true,
+                Msg::Done { .. } => done = true,
                 _ => {}
             }
         }
