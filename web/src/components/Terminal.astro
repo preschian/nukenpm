@@ -1,6 +1,8 @@
 ---
+import { SITE } from '../config/site';
 // Interactive nukenpm terminal demo. Rendered client-side; state machine
 // ported from the Claude Design prototype (nmsweep Prototype.dc.html).
+const { version } = SITE;
 ---
 
 <div
@@ -9,6 +11,7 @@
 >
 	<div
 		id="nm-term"
+		aria-label="Interactive nukenpm terminal demo"
 		style="position:relative;width:760px;max-width:100%;background:#14161a;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45);outline:none;font-family:'JetBrains Mono',ui-monospace,monospace"
 	>
 	</div>
@@ -39,7 +42,7 @@
 	}
 </style>
 
-<script>
+<script define:vars={{ version }}>
 	const ACCENT = '#5fd0c5';
 	const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
@@ -306,7 +309,7 @@
 				`<div style="min-width:0">` +
 				`<div style="font-size:13px;letter-spacing:.4px;margin-bottom:7px;display:flex;align-items:center;gap:8px">` +
 				`<span style="color:${ACCENT};display:inline-block;font-size:13px">${glyph}</span>` +
-				`<span style="color:#e6e8ec">nukenpm</span><span style="color:#5c626c">v1.0</span></div>` +
+				`<span style="color:#e6e8ec">nukenpm</span><span style="color:#5c626c">v${version}</span></div>` +
 				`<div style="font-size:12px;color:#8b909a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${statusText}</div></div>` +
 				`<div style="text-align:right;flex:none;padding-left:16px">` +
 				`<div style="font-size:10.5px;color:#5c626c;letter-spacing:1px;margin-bottom:3px">RECLAIMABLE</div>` +

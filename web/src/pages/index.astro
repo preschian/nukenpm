@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Terminal from '../components/Terminal.astro';
+import { SITE } from '../config/site';
 
 const features = [
 	{ icon: '🔍', title: 'Recursive scan', body: 'Walks a folder and everything inside it to find every matching directory underneath.' },
@@ -30,7 +31,7 @@ const keys = [
 	{ key: 'y / n', action: 'Confirm / cancel in the dialog' },
 ];
 
-const install = 'brew install preschian/tap/nukenpm';
+const { install, version } = SITE;
 const keyStyle =
 	"font-family:'JetBrains Mono',monospace;font-size:12px;color:#c8ccd2;background:#1b1e23;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 9px;white-space:nowrap;flex:none;min-width:104px;text-align:center";
 ---
@@ -44,22 +45,47 @@ const keyStyle =
 			>
 				<span style="display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600"
 					><span style="color:#5fd0c5">◈</span>nukenpm<span style="color:#5c626c;font-weight:400;font-size:12px"
-						>v1.0</span
+						>v{version}</span
 					></span
 				>
 				<span style="flex:1"></span>
-				<a class="navlink" href="#features" style="font-size:12.5px;color:#8b909a;text-decoration:none">features</a>
-				<a class="navlink" href="#usage" style="font-size:12.5px;color:#8b909a;text-decoration:none">usage</a>
-				<a class="navlink" href="#keys" style="font-size:12.5px;color:#8b909a;text-decoration:none">keys</a>
+				<div class="nav-links" style="display:flex;align-items:center;gap:28px">
+					<a class="navlink" href="#features" style="font-size:12.5px;color:#8b909a;text-decoration:none">features</a>
+					<a class="navlink" href="#usage" style="font-size:12.5px;color:#8b909a;text-decoration:none">usage</a>
+					<a class="navlink" href="#keys" style="font-size:12.5px;color:#8b909a;text-decoration:none">keys</a>
+				</div>
+				<button
+					type="button"
+					class="nav-toggle"
+					aria-label="Open navigation menu"
+					aria-expanded="false"
+					aria-controls="nav-mobile-menu"
+					style="display:none;font-family:inherit;font-size:18px;line-height:1;cursor:pointer;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:5px 10px;background:transparent;color:#c8ccd2"
+					>☰</button
+				>
 				<a
 					class="ghbtn"
-					href="https://github.com/preschian/nukenpm"
+					href={SITE.github}
 					target="_blank"
-					rel="noopener"
+					rel="noopener noreferrer"
 					style="font-size:12.5px;color:#c8ccd2;text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid rgba(255,255,255,.12);border-radius:7px"
 					>GitHub ↗</a
 				>
 			</nav>
+			<div
+				id="nav-mobile-menu"
+				class="nav-mobile-menu"
+				hidden
+				style="max-width:1080px;margin:0 auto;padding:0 20px 12px;font-family:'JetBrains Mono',ui-monospace,monospace"
+			>
+				<div
+					style="display:flex;flex-direction:column;gap:2px;padding:10px;background:#14161a;border:1px solid rgba(255,255,255,.08);border-radius:10px"
+				>
+					<a class="nav-mobile-link" href="#features" style="font-size:13px;color:#8b909a;text-decoration:none;padding:10px 12px;border-radius:6px">features</a>
+					<a class="nav-mobile-link" href="#usage" style="font-size:13px;color:#8b909a;text-decoration:none;padding:10px 12px;border-radius:6px">usage</a>
+					<a class="nav-mobile-link" href="#keys" style="font-size:13px;color:#8b909a;text-decoration:none;padding:10px 12px;border-radius:6px">keys</a>
+				</div>
+			</div>
 
 			<main>
 			<!-- HERO -->
@@ -81,12 +107,13 @@ const keyStyle =
 				</p>
 
 				<!-- install command -->
-				<div style="display:flex;justify-content:center;margin-bottom:14px">
+				<div style="display:flex;justify-content:center;margin-bottom:14px;padding:0 16px">
 					<div
-						style="display:flex;align-items:center;gap:14px;background:#14161a;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px;box-shadow:0 16px 40px rgba(0,0,0,.35)"
+						class="install-box"
+						style="display:flex;align-items:center;gap:14px;max-width:100%;background:#14161a;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px;box-shadow:0 16px 40px rgba(0,0,0,.35)"
 					>
-						<span style="color:#5c626c;user-select:none">$</span>
-						<span style="color:#e6e8ec">{install}</span>
+						<span style="color:#5c626c;user-select:none;flex:none">$</span>
+						<span class="install-cmd" style="color:#e6e8ec;min-width:0;word-break:break-all">{install}</span>
 						<button
 							class="copy-btn"
 							data-copy={install}
@@ -245,12 +272,13 @@ const keyStyle =
 							style="font-family:'JetBrains Mono',monospace;color:#c8ccd2">brew upgrade nukenpm</span
 						>.
 					</p>
-					<div style="display:flex;justify-content:center">
+					<div style="display:flex;justify-content:center;padding:0 16px">
 						<div
-							style="display:flex;align-items:center;gap:14px;background:#0d0e11;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px"
+							class="install-box"
+							style="display:flex;align-items:center;gap:14px;max-width:100%;background:#0d0e11;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px"
 						>
-							<span style="color:#5c626c;user-select:none">$</span>
-							<span style="color:#e6e8ec">{install}</span>
+							<span style="color:#5c626c;user-select:none;flex:none">$</span>
+							<span class="install-cmd" style="color:#e6e8ec;min-width:0;word-break:break-all">{install}</span>
 							<button
 								class="copy-btn"
 								data-copy={install}
@@ -281,9 +309,9 @@ const keyStyle =
 				>
 				<span style="flex:1"></span>
 				<a
-					href="https://github.com/preschian/nukenpm"
+					href={SITE.github}
 					target="_blank"
-					rel="noopener"
+					rel="noopener noreferrer"
 					style="color:#8b909a;text-decoration:none">GitHub ↗</a
 				>
 				<span>MIT</span>
@@ -310,6 +338,18 @@ const keyStyle =
 			}
 			.ghbtn:hover {
 				border-color: rgba(255, 255, 255, 0.25);
+			}
+			.copy-btn:focus-visible {
+				outline: 2px solid #5fd0c5;
+				outline-offset: 2px;
+			}
+			.nav-toggle:focus-visible {
+				outline: 2px solid #5fd0c5;
+				outline-offset: 2px;
+			}
+			.nav-mobile-link:hover {
+				color: #e6e8ec;
+				background: rgba(255, 255, 255, 0.04);
 			}
 			@keyframes nmblink {
 				0%,
@@ -355,18 +395,48 @@ const keyStyle =
 				.hero-h1 {
 					font-size: 38px !important;
 				}
-				/* collapse the nav so section links don't overflow narrow screens */
 				.nav {
-					gap: 14px !important;
+					gap: 12px !important;
 					padding: 18px 20px !important;
 				}
-				.navlink {
+				.nav-links {
 					display: none !important;
+				}
+				.nav-toggle {
+					display: inline-flex !important;
+					align-items: center;
+					justify-content: center;
+				}
+				.install-box {
+					flex-wrap: wrap;
+				}
+				.install-cmd {
+					flex: 1 1 100%;
+					font-size: 12.5px;
 				}
 			}
 		</style>
 
 		<script>
+			const navToggle = document.querySelector<HTMLButtonElement>('.nav-toggle');
+			const navMenu = document.getElementById('nav-mobile-menu');
+			if (navToggle && navMenu) {
+				const closeMenu = () => {
+					navMenu.hidden = true;
+					navToggle.setAttribute('aria-expanded', 'false');
+					navToggle.setAttribute('aria-label', 'Open navigation menu');
+				};
+				navToggle.addEventListener('click', () => {
+					const open = navMenu.hidden;
+					navMenu.hidden = !open;
+					navToggle.setAttribute('aria-expanded', String(open));
+					navToggle.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+				});
+				navMenu.querySelectorAll('a').forEach((link) => {
+					link.addEventListener('click', closeMenu);
+				});
+			}
+
 			document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
 				let timer: ReturnType<typeof setTimeout>;
 				btn.addEventListener('click', async () => {
