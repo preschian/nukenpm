@@ -1,5 +1,37 @@
 ---
+import Terminal from '../components/Terminal.astro';
 
+const features = [
+	{ icon: '🔍', title: 'Recursive scan', body: 'Walks a folder and everything inside it to find every matching directory underneath.' },
+	{ icon: '📦', title: 'Size, files & age', body: "Shows each folder's size, file count, and how long since you last touched it." },
+	{ icon: '🕰️', title: 'Stale detection', body: 'Flags folders you haven’t touched in 6+ months, the safe ones to clear.' },
+	{ icon: '✅', title: 'Batch sweep', body: 'Pick several at once and reclaim them all in a single pass.' },
+	{ icon: '🛡️', title: 'Safe by default', body: 'Shows the total size and waits for your confirmation before it deletes anything.' },
+	{ icon: '⚡', title: 'Fast on huge trees', body: 'Stays snappy even on massive project folders, and reports exactly what you freed.' },
+];
+
+const commands = [
+	{ cmd: 'nukenpm', note: '                        # scan the current folder' },
+	{ cmd: 'nukenpm ~/code', note: '                 # scan a specific folder' },
+	{ cmd: 'nukenpm ~/code --target target', note: ' # Rust build folders' },
+	{ cmd: 'nukenpm ~/projects -t .venv', note: '    # Python virtualenvs' },
+	{ cmd: 'nukenpm ~/projects --yes', note: '       # skip the confirmation' },
+];
+
+const keys = [
+	{ key: '↑ / k  ↓ / j', action: 'Move the cursor' },
+	{ key: 'space', action: 'Select / deselect the row' },
+	{ key: 'a', action: 'Select all / clear selection' },
+	{ key: 'enter / del', action: 'Delete selection or cursor row' },
+	{ key: 's', action: 'Cycle sort: size → age → name' },
+	{ key: 'q / esc', action: 'Show the session summary' },
+	{ key: 'ctrl-c', action: 'Quit immediately' },
+	{ key: 'y / n', action: 'Confirm / cancel in the dialog' },
+];
+
+const install = 'brew install preschian/tap/nukenpm';
+const keyStyle =
+	"font-family:'JetBrains Mono',monospace;font-size:12px;color:#c8ccd2;background:#1b1e23;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 9px;white-space:nowrap;flex:none;min-width:104px;text-align:center";
 ---
 
 <html lang="en">
@@ -7,11 +39,359 @@
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
+		<meta
+			name="description"
+			content="nukenpm — a fast, keyboard-driven terminal app that finds and wipes the node_modules (and other build folders) eating your disk."
+		/>
+		<title>nukenpm — Nuke the node_modules eating your disk</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+			rel="stylesheet"
+		/>
 	</head>
 	<body>
-		<h1>Astro</h1>
+		<div style="min-height:100vh;background:radial-gradient(1100px 620px at 50% -8%,#16191f,#0d0e11 62%)">
+			<!-- NAV -->
+			<nav
+				style="max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:28px;padding:22px 32px;font-family:'JetBrains Mono',ui-monospace,monospace"
+			>
+				<span style="display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600"
+					><span style="color:#5fd0c5">◈</span>nukenpm<span style="color:#5c626c;font-weight:400;font-size:12px"
+						>v1.0</span
+					></span
+				>
+				<span style="flex:1"></span>
+				<a class="navlink" href="#features" style="font-size:12.5px;color:#8b909a;text-decoration:none">features</a>
+				<a class="navlink" href="#usage" style="font-size:12.5px;color:#8b909a;text-decoration:none">usage</a>
+				<a class="navlink" href="#keys" style="font-size:12.5px;color:#8b909a;text-decoration:none">keys</a>
+				<a
+					class="ghbtn"
+					href="https://github.com/preschian/nukenpm"
+					target="_blank"
+					rel="noopener"
+					style="font-size:12.5px;color:#c8ccd2;text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid rgba(255,255,255,.12);border-radius:7px"
+					>GitHub ↗</a
+				>
+			</nav>
+
+			<!-- HERO -->
+			<header style="max-width:1080px;margin:0 auto;padding:52px 32px 40px;text-align:center">
+				<div
+					style="display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border:1px solid rgba(95,208,197,.28);background:rgba(95,208,197,.07);border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#5fd0c5;letter-spacing:.5px;margin-bottom:26px"
+				>
+					RUST · TERMINAL · MIT
+				</div>
+				<h1
+					class="hero-h1"
+					style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:52px;line-height:1.08;letter-spacing:-1px;margin:0 auto 20px;max-width:760px;color:#f2f4f7;text-wrap:balance"
+				>
+					Nuke the <span style="color:#5fd0c5">node_modules</span> eating your disk.
+				</h1>
+				<p style="font-size:17px;line-height:1.6;color:#8b909a;max-width:560px;margin:0 auto 30px">
+					A fast, keyboard-driven terminal app. Point it at a folder, see what each one costs, and wipe the ones you
+					don't need.
+				</p>
+
+				<!-- install command -->
+				<div style="display:flex;justify-content:center;margin-bottom:14px">
+					<div
+						style="display:flex;align-items:center;gap:14px;background:#14161a;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px;box-shadow:0 16px 40px rgba(0,0,0,.35)"
+					>
+						<span style="color:#5c626c;user-select:none">$</span>
+						<span style="color:#e6e8ec">{install}</span>
+						<button
+							class="copy-btn"
+							data-copy={install}
+							style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s">copy</button
+						>
+					</div>
+				</div>
+				<div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#5c626c">
+					macOS &amp; Linux · no other tools required
+				</div>
+			</header>
+
+			<!-- LIVE DEMO -->
+			<section style="max-width:900px;margin:0 auto;padding:14px 32px 64px">
+				<div
+					style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#5c626c;letter-spacing:1px;margin-bottom:16px"
+				>
+					▼ TRY IT: CLICK ROWS, SELECT, DELETE
+				</div>
+				<div style="border-radius:14px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.5)">
+					<Terminal />
+				</div>
+			</section>
+
+			<!-- FEATURES -->
+			<section id="features" style="max-width:1080px;margin:0 auto;padding:20px 32px 20px;scroll-margin-top:20px">
+				<div
+					style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5fd0c5;letter-spacing:1px;margin-bottom:10px"
+				>
+					// what it does
+				</div>
+				<h2
+					style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:30px;margin:0 0 34px;letter-spacing:-.5px"
+				>
+					Built for reclaiming space, safely.
+				</h2>
+				<div class="features-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+					{
+						features.map((f) => (
+							<div style="padding:22px 22px 24px;background:#14161a;border:1px solid rgba(255,255,255,.07);border-radius:12px">
+								<div style="font-size:22px;margin-bottom:14px;filter:saturate(.9)">{f.icon}</div>
+								<div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#e6e8ec;margin-bottom:8px">
+									{f.title}
+								</div>
+								<div style="font-size:13.5px;line-height:1.6;color:#8b909a">{f.body}</div>
+							</div>
+						))
+					}
+				</div>
+			</section>
+
+			<!-- TARGET CALLOUT -->
+			<section style="max-width:1080px;margin:0 auto;padding:28px 32px 20px">
+				<div
+					style="display:flex;align-items:center;gap:26px;flex-wrap:wrap;padding:26px 30px;background:linear-gradient(100deg,rgba(95,208,197,.08),rgba(95,208,197,.02));border:1px solid rgba(95,208,197,.22);border-radius:14px"
+				>
+					<div style="flex:1;min-width:260px">
+						<div
+							style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:#e6e8ec;margin-bottom:7px"
+						>
+							Not just node_modules.
+						</div>
+						<div style="font-size:14px;line-height:1.6;color:#8b909a">
+							Point <span style="font-family:'JetBrains Mono',monospace;color:#5fd0c5">--target</span> at any folder name:
+							Rust <span style="font-family:'JetBrains Mono',monospace;color:#c8ccd2">target/</span> dirs, Python
+							<span style="font-family:'JetBrains Mono',monospace;color:#c8ccd2">.venv</span>, build caches, whatever's
+							hogging space.
+						</div>
+					</div>
+					<div
+						style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#c8ccd2;background:#0d0e11;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:14px 16px;line-height:1.9"
+					>
+						<div><span style="color:#5c626c">$</span> nukenpm ~/code <span style="color:#5fd0c5">-t target</span></div>
+						<div>
+							<span style="color:#5c626c">$</span> nukenpm ~/projects <span style="color:#5fd0c5">-t .venv</span>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- USAGE -->
+			<section id="usage" style="max-width:1080px;margin:0 auto;padding:40px 32px 20px;scroll-margin-top:20px">
+				<div
+					style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5fd0c5;letter-spacing:1px;margin-bottom:10px"
+				>
+					// usage
+				</div>
+				<h2
+					style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:30px;margin:0 0 26px;letter-spacing:-.5px"
+				>
+					One command. A few flags.
+				</h2>
+				<div style="background:#14161a;border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden">
+					<div
+						style="display:flex;align-items:center;gap:7px;padding:12px 15px;background:#1b1e23;border-bottom:1px solid rgba(255,255,255,.05)"
+					>
+						<span style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.13)"></span>
+						<span style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.13)"></span>
+						<span style="width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.13)"></span>
+						<span style="flex:1;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#8b909a"
+							>bash</span
+						>
+						<span style="width:30px"></span>
+					</div>
+					<div style="padding:22px 24px;font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:2.15;overflow-x:auto">
+						{
+							commands.map((c) => (
+								<div style="white-space:pre">
+									<span style="color:#5c626c">$ </span>
+									<span style="color:#e6e8ec">{c.cmd}</span>
+									<span style="color:#5c626c">{c.note}</span>
+								</div>
+							))
+						}
+					</div>
+				</div>
+			</section>
+
+			<!-- KEYS -->
+			<section id="keys" style="max-width:1080px;margin:0 auto;padding:40px 32px 20px;scroll-margin-top:20px">
+				<div
+					style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5fd0c5;letter-spacing:1px;margin-bottom:10px"
+				>
+					// keys
+				</div>
+				<h2
+					style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:30px;margin:0 0 26px;letter-spacing:-.5px"
+				>
+					Everything from the keyboard.
+				</h2>
+				<div class="keys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 36px">
+					{
+						keys.map((k) => (
+							<div style="display:flex;align-items:center;gap:14px;padding:11px 4px;border-bottom:1px solid rgba(255,255,255,.06)">
+								<span style={keyStyle}>{k.key}</span>
+								<span style="font-size:13.5px;color:#8b909a">{k.action}</span>
+							</div>
+						))
+					}
+				</div>
+			</section>
+
+			<!-- INSTALL / CTA -->
+			<section style="max-width:1080px;margin:0 auto;padding:56px 32px 24px">
+				<div
+					style="text-align:center;padding:48px 32px;background:radial-gradient(600px 320px at 50% 0%,#181c22,#131519);border:1px solid rgba(255,255,255,.08);border-radius:16px"
+				>
+					<h2
+						style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:34px;margin:0 0 12px;letter-spacing:-.5px"
+					>
+						Reclaim your disk in one sweep.
+					</h2>
+					<p style="font-size:15px;color:#8b909a;margin:0 auto 28px;max-width:440px">
+						Install once with Homebrew. Update anytime with <span
+							style="font-family:'JetBrains Mono',monospace;color:#c8ccd2">brew upgrade nukenpm</span
+						>.
+					</p>
+					<div style="display:flex;justify-content:center">
+						<div
+							style="display:flex;align-items:center;gap:14px;background:#0d0e11;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px"
+						>
+							<span style="color:#5c626c;user-select:none">$</span>
+							<span style="color:#e6e8ec">{install}</span>
+							<button
+								class="copy-btn"
+								data-copy={install}
+								style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s"
+								>copy</button
+							>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- FOOTER -->
+			<footer
+				style="max-width:1080px;margin:20px auto 0;padding:34px 32px 56px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.06);font-family:'JetBrains Mono',monospace;font-size:12px;color:#5c626c"
+			>
+				<span style="display:flex;align-items:center;gap:8px;color:#8b909a"
+					><span style="color:#5fd0c5">◈</span>nukenpm</span
+				>
+				<span>·</span><span
+					>Built in Rust with <a
+						href="https://github.com/ratatui/ratatui"
+						target="_blank"
+						rel="noopener"
+						style="color:#8b909a;text-decoration:none">ratatui</a
+					></span
+				>
+				<span style="flex:1"></span>
+				<a
+					href="https://github.com/preschian/nukenpm"
+					target="_blank"
+					rel="noopener"
+					style="color:#8b909a;text-decoration:none">GitHub ↗</a
+				>
+				<span>MIT</span>
+			</footer>
+		</div>
+
+		<style is:global>
+			html,
+			body {
+				margin: 0;
+				background: #0d0e11;
+				font-family: 'Inter', system-ui, sans-serif;
+				color: #e6e8ec;
+				-webkit-font-smoothing: antialiased;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			a {
+				color: inherit;
+			}
+			.navlink:hover {
+				color: #e6e8ec;
+			}
+			.ghbtn:hover {
+				border-color: rgba(255, 255, 255, 0.25);
+			}
+			@keyframes nmblink {
+				0%,
+				49% {
+					opacity: 1;
+				}
+				50%,
+				100% {
+					opacity: 0;
+				}
+			}
+			@keyframes nmfloat {
+				0%,
+				100% {
+					transform: translateY(0);
+				}
+				50% {
+					transform: translateY(-5px);
+				}
+			}
+			@keyframes nmfade {
+				from {
+					opacity: 0;
+					transform: translateY(3px);
+				}
+				to {
+					opacity: 1;
+					transform: none;
+				}
+			}
+			@keyframes nmspin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			@media (max-width: 720px) {
+				.features-grid {
+					grid-template-columns: 1fr !important;
+				}
+				.keys-grid {
+					grid-template-columns: 1fr !important;
+				}
+				.hero-h1 {
+					font-size: 38px !important;
+				}
+			}
+		</style>
+
+		<script>
+			document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
+				let timer: ReturnType<typeof setTimeout>;
+				btn.addEventListener('click', async () => {
+					const text = btn.dataset.copy || '';
+					try {
+						await navigator.clipboard.writeText(text);
+					} catch {
+						/* clipboard unavailable */
+					}
+					btn.textContent = 'copied ✓';
+					btn.style.background = 'rgba(95,208,197,.16)';
+					btn.style.color = '#5fd0c5';
+					clearTimeout(timer);
+					timer = setTimeout(() => {
+						btn.textContent = 'copy';
+						btn.style.background = '#5fd0c5';
+						btn.style.color = '#0d0e11';
+					}, 1600);
+				});
+			});
+		</script>
 	</body>
 </html>
