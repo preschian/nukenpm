@@ -11,6 +11,7 @@ const { version } = SITE;
 >
 	<div
 		id="nm-term"
+		data-version={version}
 		aria-label="Interactive nukenpm terminal demo"
 		style="position:relative;width:760px;max-width:100%;background:#14161a;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45);outline:none;font-family:'JetBrains Mono',ui-monospace,monospace"
 	>
@@ -42,9 +43,10 @@ const { version } = SITE;
 	}
 </style>
 
-<script define:vars={{ version }}>
+<script>
 	const ACCENT = '#5fd0c5';
 	const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+	const version = document.getElementById('nm-term')?.dataset.version ?? '0.2.0';
 
 	type Folder = {
 		id: string;
