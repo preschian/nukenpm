@@ -132,15 +132,18 @@ pub fn scan(
                 continue;
             }
 
-            let path = entry.path();
-            if entry.file_name() == *target.as_str() {
+            let name = entry.file_name();
+            if name == *target.as_str() {
                 // Hand the expensive sizing off to a worker; keep walking.
-                if job_tx.send(path).is_err() {
+                if job_tx.send(entry.path()).is_err() {
                     break; // Workers gone, nothing left to do.
                 }
                 // Do not descend into a matched directory.
-            } else {
-                stack.push(path);
+            } else if name != ".git" {
+                // `.git` never contains a target, and its objects/ tree is
+                // thousands of tiny directories — skipping it makes scans over
+                // folders full of repos noticeably faster.
+                stack.push(entry.path());
             }
         }
     }
@@ -173,6 +176,8 @@ mod tests {
         // project-b/node_modules  (empty-ish)
         let nm_b = base.join("project-b/node_modules");
         fs::create_dir_all(&nm_b).unwrap();
+        // project-a/.git/node_modules  (.git is never descended into)
+        fs::create_dir_all(base.join("project-a/.git/node_modules")).unwrap();
 
         let (tx, rx) = mpsc::channel();
         scan(
