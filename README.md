@@ -1,76 +1,71 @@
 # nukenpm
 
-An interactive terminal UI to find and **nuke** heavy directories like
-`node_modules` and reclaim disk space — inspired by
-[npkill](https://www.npmjs.com/package/npkill), written in Rust with
-[ratatui](https://github.com/ratatui/ratatui).
+Reclaim disk space by finding and **nuking** heavy folders like `node_modules`.
 
-## Features
+`nukenpm` is a fast, interactive terminal app: point it at a folder, it hunts
+down all the space-hogging directories underneath, shows you how big each one is
+and how long since you last touched it, and lets you wipe the ones you don't need
+— all from a keyboard-driven list.
 
-- 🔍 Recursively scans for `node_modules` (or any directory name you choose)
-- ⚡ Background scanning — the UI stays responsive while a huge tree is walked
-- 📦 Shows each directory's size, file count and last-modified age
-- ✅ Multi-select several directories, then reclaim them in one pass
-- 🛡️ A confirmation dialog (with size + file totals) before anything is deleted
-- 🗑️ Deletions run off the UI thread, so the interface never blocks
-- 📊 Live "reclaimable" readout, plus a session summary of what you freed
-- 🔀 Sort by size, modified time, or path
-- 🕰️ Stale directories (untouched for 6+ months) are gently highlighted
+## Install
 
-## Install / Build
+With [Homebrew](https://brew.sh) (macOS & Linux):
 
 ```bash
-cargo build --release
-# binary at ./target/release/nukenpm
+brew install preschian/tap/nukenpm
 ```
+
+That's it — no other tools required. To update later: `brew upgrade nukenpm`.
+
+> Prefer to build it yourself? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## What it does
+
+- 🔍 Scans a folder (and everything inside it) for `node_modules`
+- 📦 Shows each one's size, file count, and how old it is
+- 🕰️ Highlights stale folders you haven't touched in 6+ months
+- ✅ Pick several at once and reclaim them in a single sweep
+- 🛡️ Asks for confirmation — with the total size — before deleting anything
+- ⚡ Stays snappy the whole time, even on huge project folders
+- 📊 Tells you exactly how much space you freed when you're done
 
 ## Usage
 
 ```bash
-# scan the current directory for node_modules
+# scan the current folder
 nukenpm
 
-# scan a specific directory
+# scan a specific folder
 nukenpm ~/code
 
-# hunt for a different directory name
-nukenpm ~/code --target target      # Rust build dirs
-nukenpm ~/projects -t .venv          # Python virtualenvs
+# hunt for a different folder name instead of node_modules
+nukenpm ~/code --target target      # Rust build folders
+nukenpm ~/projects -t .venv          # Python virtual environments
 
-# delete without the confirmation dialog
+# skip the confirmation prompt
 nukenpm ~/projects --yes
 ```
 
-### Keybindings
+### Keys
 
-| Key                    | Action                                  |
-| ---------------------- | --------------------------------------- |
-| `↑` / `k`, `↓` / `j`   | Move the cursor                         |
-| `space`                | Select / deselect the highlighted row   |
-| `a`                    | Select all / clear the selection        |
-| `enter` / `del`        | Delete the selection (or cursor row)    |
-| `s`                    | Cycle sort mode (size → modified → path) |
-| `q` / `esc`            | Show the session summary                |
-| `ctrl-c`               | Quit immediately                        |
+| Key                    | Action                                   |
+| ---------------------- | ---------------------------------------- |
+| `↑` / `k`, `↓` / `j`   | Move the cursor                          |
+| `space`                | Select / deselect the highlighted row    |
+| `a`                    | Select all / clear the selection         |
+| `enter` / `del`        | Delete the selection (or the cursor row) |
+| `s`                    | Change sort order (size → age → name)    |
+| `q` / `esc`            | Show the session summary                 |
+| `ctrl-c`               | Quit immediately                         |
 
 In the confirmation dialog, `enter` / `y` confirms and `esc` / `n` cancels.
-On the summary screen, `r` scans again and `q` / `esc` quits. Pass `--yes` to
-skip confirmation entirely.
+On the summary screen, `r` scans again and `q` / `esc` quits.
 
-## How it works
+## Credits
 
-- A background thread walks the tree, and when it hits a target directory it
-  measures the size and reports it — without descending into it (so nested
-  `node_modules` are never double-counted).
-- Deletions are spawned onto their own threads and stream their result back, so
-  the interface never blocks while a large tree is removed.
-- Symlinks are never followed, avoiding cycles and off-tree files.
-- When every discovered directory has been reclaimed, the session summary
-  appears automatically; press `r` to scan again.
+Inspired by [npkill](https://www.npmjs.com/package/npkill). Built in Rust with
+[ratatui](https://github.com/ratatui/ratatui).
 
-## Development
+## License
 
-```bash
-cargo test    # unit tests for the scanner and size helpers
-cargo run     # run against the current directory
-```
+[MIT](LICENSE)
