@@ -288,6 +288,20 @@ fn render_table(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
+    // When the cursor sits on a failed deletion, surface the reason where the
+    // keybinding hints normally live — the size column only says "error".
+    if let Some(entry) = app.visible().get(app.cursor)
+        && entry.status == EntryStatus::Error
+        && let Some(msg) = &entry.error
+    {
+        let line = Line::from(vec![
+            Span::styled("⚠ ", Style::default().fg(DANGER)),
+            Span::styled(msg.clone(), Style::default().fg(DANGER)),
+        ]);
+        frame.render_widget(Paragraph::new(line), area);
+        return;
+    }
+
     let marked = app.marked_count();
     let delete_label = if marked > 0 {
         format!("delete {marked}")
@@ -554,6 +568,18 @@ mod tests {
         let out = render_to_string(&app, 80, 24);
         assert!(out.contains("Delete this folder?"), "dialog title missing:\n{out}");
         assert!(out.contains("Cancel"), "cancel button missing:\n{out}");
+    }
+
+    #[test]
+    fn footer_shows_delete_error_under_cursor() {
+        let mut app = ready_app();
+        // The cursor starts on the largest entry (dashboard, size sort).
+        app.handle_msg(Msg::DeleteError {
+            path: PathBuf::from("/home/me/projects/dashboard/node_modules"),
+            error: "dashboard/node_modules/locked.js: permission denied".into(),
+        });
+        let out = render_to_string(&app, 80, 24);
+        assert!(out.contains("permission denied"), "error reason missing:\n{out}");
     }
 
     #[test]

@@ -16,7 +16,6 @@
 //! so the UI is unchanged.
 
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
@@ -39,10 +38,11 @@ fn run(paths: Vec<PathBuf>, tx: Sender<Msg>) {
 
     // Files to unlink; a single receiver shared behind a mutex so any idle
     // worker grabs the next one. Each worker acks its outcome so the
-    // orchestrator can tell when a folder is fully drained.
+    // orchestrator can tell when a folder is fully drained. Errors carry the
+    // failing path, since the orchestrator no longer knows which file it was.
     let (job_tx, job_rx) = mpsc::channel::<PathBuf>();
     let job_rx = Arc::new(Mutex::new(job_rx));
-    let (ack_tx, ack_rx) = mpsc::channel::<io::Result<()>>();
+    let (ack_tx, ack_rx) = mpsc::channel::<Result<(), String>>();
 
     let mut handles = Vec::with_capacity(workers);
     for _ in 0..workers {
@@ -59,7 +59,9 @@ fn run(paths: Vec<PathBuf>, tx: Sender<Msg>) {
                 };
                 // `remove_file` unlinks a plain file or a symlink without
                 // following it, matching `remove_dir_all`'s treatment of links.
-                if ack_tx.send(fs::remove_file(&file)).is_err() {
+                let outcome = fs::remove_file(&file)
+                    .map_err(|e| format!("{}: {e}", file.display()));
+                if ack_tx.send(outcome).is_err() {
                     return; // Orchestrator gone.
                 }
             }
@@ -96,7 +98,7 @@ fn run(paths: Vec<PathBuf>, tx: Sender<Msg>) {
 fn delete_one(
     folder: &Path,
     job_tx: &Sender<PathBuf>,
-    ack_rx: &mpsc::Receiver<io::Result<()>>,
+    ack_rx: &mpsc::Receiver<Result<(), String>>,
 ) -> Result<(), String> {
     let mut first_err: Option<String> = None;
     // Directories recorded in visit order (parent before child). A DFS stack
@@ -111,7 +113,7 @@ fn delete_one(
         let read_dir = match fs::read_dir(&dir) {
             Ok(rd) => rd,
             Err(e) => {
-                first_err.get_or_insert_with(|| e.to_string());
+                first_err.get_or_insert_with(|| format!("{}: {e}", dir.display()));
                 continue;
             }
         };
@@ -138,7 +140,7 @@ fn delete_one(
         match ack_rx.recv() {
             Ok(Ok(())) => {}
             Ok(Err(e)) => {
-                first_err.get_or_insert_with(|| e.to_string());
+                first_err.get_or_insert(e);
             }
             Err(_) => break, // All workers vanished; nothing more will arrive.
         }
@@ -148,7 +150,7 @@ fn delete_one(
     // it failed to unlink, in which case the error is already recorded.
     for dir in dirs.iter().rev() {
         if let Err(e) = fs::remove_dir(dir) {
-            first_err.get_or_insert_with(|| e.to_string());
+            first_err.get_or_insert_with(|| format!("{}: {e}", dir.display()));
         }
     }
 
