@@ -57,6 +57,7 @@ const keyStyle =
 		<div style="min-height:100vh;background:radial-gradient(1100px 620px at 50% -8%,#16191f,#0d0e11 62%)">
 			<!-- NAV -->
 			<nav
+				class="nav"
 				style="max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:28px;padding:22px 32px;font-family:'JetBrains Mono',ui-monospace,monospace"
 			>
 				<span style="display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600"
@@ -367,6 +368,14 @@ const keyStyle =
 				}
 				.hero-h1 {
 					font-size: 38px !important;
+				}
+				/* collapse the nav so section links don't overflow narrow screens */
+				.nav {
+					gap: 14px !important;
+					padding: 18px 20px !important;
+				}
+				.navlink {
+					display: none !important;
 				}
 			}
 		</style>

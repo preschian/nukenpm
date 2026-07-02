@@ -14,6 +14,31 @@
 	</div>
 </div>
 
+<style is:global>
+	/* On narrow screens the fixed MODIFIED/SIZE tracks starved the PATH column
+	   to nothing. Drop the MODIFIED column and tighten padding so the path —
+	   the whole point of the demo — stays visible. */
+	@media (max-width: 720px) {
+		.nm-stage {
+			padding: 24px 8px !important;
+		}
+		.nm-body {
+			padding: 20px 15px 18px !important;
+		}
+		.nm-cols {
+			grid-template-columns: 1fr 78px !important;
+			gap: 12px !important;
+		}
+		.nm-mod {
+			display: none !important;
+		}
+		.nm-hints {
+			flex-wrap: wrap !important;
+			gap: 12px 18px !important;
+		}
+	}
+</style>
+
 <script>
 	const ACCENT = '#5fd0c5';
 	const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -238,7 +263,7 @@
 					const sizeColor = marked || isCursor ? ACCENT : '#c8ccd2';
 					const bold = marked || isCursor ? '600' : '400';
 					return (
-						`<div data-row="${i}" data-id="${f.id}" style="${rowStyle}">` +
+						`<div class="nm-cols" data-row="${i}" data-id="${f.id}" style="${rowStyle}">` +
 						`<span style="display:inline-flex;align-items:center;min-width:0">` +
 						`<span style="width:14px;flex:none;color:${ACCENT}">${cur}</span>` +
 						`<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">` +
@@ -246,7 +271,7 @@
 						`<span style="color:${nameColor};font-weight:${bold}">${f.name}</span>` +
 						`<span style="color:#5c626c">/node_modules</span>` +
 						`</span></span>` +
-						`<span style="text-align:right;color:${modColor}">${f.modified}</span>` +
+						`<span class="nm-mod" style="text-align:right;color:${modColor}">${f.modified}</span>` +
 						`<span style="text-align:right;color:${sizeColor};font-weight:${bold}">${this.fmt(f.sizeMB)}</span>` +
 						`</div>`
 					);
@@ -276,7 +301,7 @@
 				`<div style="display:flex;gap:7px">${dot}${dot}${dot}</div>` +
 				`<span style="flex:1;text-align:center;font-size:12px;color:#8b909a">nukenpm — ~/projects</span>` +
 				`<span style="width:52px"></span></div>` +
-				`<div style="padding:26px 28px 22px;color:#e6e8ec">` +
+				`<div class="nm-body" style="padding:26px 28px 22px;color:#e6e8ec">` +
 				`<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px">` +
 				`<div style="min-width:0">` +
 				`<div style="font-size:13px;letter-spacing:.4px;margin-bottom:7px;display:flex;align-items:center;gap:8px">` +
@@ -288,10 +313,10 @@
 				`<div style="font-size:27px;color:${ACCENT};font-weight:500;line-height:1">${this.fmt(reclaimSum)}</div></div></div>` +
 				`<div style="height:3px;border-radius:2px;background:rgba(255,255,255,.06);margin-bottom:24px;overflow:hidden">` +
 				`<div style="height:100%;width:${st.progress * 100}%;background:${ACCENT};opacity:${scanning ? 0.9 : 0.55};transition:width .1s linear"></div></div>` +
-				`<div style="display:grid;grid-template-columns:1fr 118px 84px;gap:16px;font-size:10.5px;color:#5c626c;padding:0 0 9px;letter-spacing:.8px">` +
-				`<span>PATH ${sortPath}</span><span style="text-align:right">MODIFIED ${sortMod}</span><span style="text-align:right">SIZE ${sortSize}</span></div>` +
+				`<div class="nm-cols" style="display:grid;grid-template-columns:1fr 118px 84px;gap:16px;font-size:10.5px;color:#5c626c;padding:0 0 9px;letter-spacing:.8px">` +
+				`<span>PATH ${sortPath}</span><span class="nm-mod" style="text-align:right">MODIFIED ${sortMod}</span><span style="text-align:right">SIZE ${sortSize}</span></div>` +
 				`<div style="min-height:266px">${rowsHtml}</div>` +
-				`<div style="display:flex;gap:22px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05);font-size:11px;color:#5c626c">` +
+				`<div class="nm-hints" style="display:flex;gap:22px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05);font-size:11px;color:#5c626c">` +
 				`<span><b style="color:#8b909a;font-weight:600">↑↓</b> navigate</span>` +
 				`${fnav('space', 'space')} select</span>` +
 				`${fnav('all', 'a')} ${selectAllLabel}</span>` +
