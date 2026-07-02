@@ -1,43 +1,47 @@
-# Astro Starter Kit: Minimal
+# nukenpm website
 
-```sh
-bun create astro@latest -- --template minimal
+Marketing site for [nukenpm](https://nukenpm.avalix.dev) — built with [Astro](https://astro.build) and deployed to Cloudflare Workers.
+
+## Setup
+
+Requires [Bun](https://bun.sh) and Node.js ≥ 22.12.
+
+```bash
+cd web
+bun install
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The site version is read automatically from `../cli/Cargo.toml` at build time.
 
-## 🚀 Project Structure
+## Commands
 
-Inside of your Astro project, you'll see the following folders and files:
+| Command | Action |
+| :------ | :----- |
+| `bun run dev` | Local dev server at `localhost:4321` |
+| `bun run build` | Production build to `./dist/` |
+| `bun run preview` | Preview the build with Wrangler |
+| `bun run check` | Type-check with Astro |
+| `bun run deploy` | Build and deploy to Cloudflare |
+
+## Structure
 
 ```text
-/
-├── public/
+web/
+├── public/          Static assets (favicon, OG image, headers)
 ├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+│   ├── components/  Astro components (Terminal demo, install box)
+│   ├── config/      Site metadata
+│   ├── layouts/     Base HTML shell + SEO
+│   ├── pages/       Routes (index, 404)
+│   └── scripts/     Client-side TypeScript
+├── astro.config.mjs
+└── wrangler.jsonc
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Deploy
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+```bash
+bun run deploy
+```
 
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `bun install`             | Installs dependencies                            |
-| `bun run dev`             | Starts local dev server at `localhost:4321`      |
-| `bun run build`           | Build your production site to `./dist/`          |
-| `bun run preview`         | Preview your build locally, before deploying     |
-| `bun run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Requires Cloudflare credentials (`wrangler login` or `CLOUDFLARE_API_TOKEN` in CI).

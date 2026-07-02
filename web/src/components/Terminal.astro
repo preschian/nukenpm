@@ -1,7 +1,6 @@
 ---
 import { SITE } from '../config/site';
-// Interactive nukenpm terminal demo. Rendered client-side; state machine
-// ported from the Claude Design prototype (nmsweep Prototype.dc.html).
+
 const { version } = SITE;
 ---
 
@@ -19,6 +18,26 @@ const { version } = SITE;
 </div>
 
 <style is:global>
+	@keyframes nmfade {
+		from {
+			opacity: 0;
+			transform: translateY(3px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.nm-stage [style*='animation:nmfade'] {
+			animation: none !important;
+		}
+		.nm-stage [style*='transition:width'] {
+			transition: none !important;
+		}
+	}
+
 	/* On narrow screens the fixed MODIFIED/SIZE tracks starved the PATH column
 	   to nothing. Drop the MODIFIED column and tighten padding so the path —
 	   the whole point of the demo — stays visible. */
@@ -43,332 +62,4 @@ const { version } = SITE;
 	}
 </style>
 
-<script>
-	const ACCENT = '#5fd0c5';
-	const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-	const version = document.getElementById('nm-term')?.dataset.version ?? '0.2.0';
-
-	type Folder = {
-		id: string;
-		prefix: string;
-		name: string;
-		sizeMB: number;
-		modified: string;
-		ageMonths: number;
-		files: number;
-	};
-
-	const MASTER: Folder[] = [
-		{ id: 'mobile-app', prefix: '~/work/', name: 'mobile-app', sizeMB: 1200, modified: '5 months ago', ageMonths: 5, files: 41208 },
-		{ id: 'legacy-cms', prefix: '~/dev/', name: 'legacy-cms', sizeMB: 891, modified: '1 year ago', ageMonths: 12, files: 32100 },
-		{ id: 'dashboard-app', prefix: '~/projects/', name: 'dashboard-app', sizeMB: 428, modified: '2 months ago', ageMonths: 2, files: 18400 },
-		{ id: 'old-portfolio', prefix: '~/projects/', name: 'old-portfolio', sizeMB: 312, modified: '8 months ago', ageMonths: 8, files: 12900 },
-		{ id: 'api-server', prefix: '~/dev/', name: 'api-server', sizeMB: 256, modified: '3 days ago', ageMonths: 0.1, files: 9800 },
-		{ id: 'test-ground', prefix: '~/sandbox/', name: 'test-ground', sizeMB: 178, modified: '2 weeks ago', ageMonths: 0.5, files: 6400 },
-		{ id: 'blog', prefix: '~/projects/', name: 'blog', sizeMB: 94, modified: '6 months ago', ageMonths: 6, files: 3200 },
-	];
-
-	type State = {
-		phase: 'scanning' | 'ready' | 'done';
-		revealed: number;
-		progress: number;
-		scanFrame: number;
-		cursor: number;
-		sort: 'size' | 'date' | 'name';
-		marks: string[];
-		deleted: string[];
-		freed: number;
-		showConfirm: boolean;
-		confirmIds: string[];
-	};
-
-	class NmTerm {
-		el: HTMLElement;
-		state: State;
-		timer: ReturnType<typeof setInterval> | undefined;
-
-		constructor(el: HTMLElement) {
-			this.el = el;
-			this.el.tabIndex = 0;
-			this.state = this.freshState();
-			this.el.addEventListener('keydown', (e) => this.onKey(e));
-			this.el.addEventListener('click', (e) => this.onClick(e));
-			this.startScan();
-		}
-
-		freshState(): State {
-			return {
-				phase: 'scanning', revealed: 0, progress: 0, scanFrame: 0, cursor: 0,
-				sort: 'size', marks: [], deleted: [], freed: 0, showConfirm: false, confirmIds: [],
-			};
-		}
-
-		setState(patch: Partial<State> | ((s: State) => Partial<State>)) {
-			const next = typeof patch === 'function' ? patch(this.state) : patch;
-			Object.assign(this.state, next);
-			this.render();
-		}
-
-		startScan() {
-			clearInterval(this.timer);
-			this.state = this.freshState();
-			this.render();
-			const total = MASTER.length;
-			const steps = 26;
-			let step = 0;
-			this.timer = setInterval(() => {
-				step++;
-				const progress = Math.min(1, step / steps);
-				const revealed = Math.min(total, Math.round(progress * total));
-				this.setState({ progress, revealed, scanFrame: step });
-				if (step >= steps) {
-					clearInterval(this.timer);
-					this.setState({ phase: 'ready', progress: 1, revealed: total });
-				}
-			}, 105);
-		}
-
-		visible(): Folder[] {
-			const del = this.state.deleted;
-			const s = this.state.sort;
-			const arr = MASTER.filter((f) => del.indexOf(f.id) < 0);
-			arr.sort((a, b) =>
-				s === 'size' ? b.sizeMB - a.sizeMB : s === 'date' ? b.ageMonths - a.ageMonths : a.name.localeCompare(b.name)
-			);
-			return arr;
-		}
-
-		fmt(mb: number): string {
-			return mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB';
-		}
-
-		onKey(e: KeyboardEvent) {
-			const k = e.key;
-			if (this.state.showConfirm) {
-				if (k === 'Enter' || k === 'y' || k === 'Y') { e.preventDefault(); this.performDelete(); }
-				else if (k === 'Escape' || k === 'n' || k === 'N') { e.preventDefault(); this.setState({ showConfirm: false, confirmIds: [] }); }
-				return;
-			}
-			if (this.state.phase === 'done') { if (k === 'r' || k === 'R') { e.preventDefault(); this.startScan(); } return; }
-			if (this.state.phase !== 'ready') return;
-			const n = this.visible().length;
-			if (k === 'ArrowDown' || k === 'j') { e.preventDefault(); this.setState((s) => ({ cursor: Math.min(n - 1, s.cursor + 1) })); }
-			else if (k === 'ArrowUp' || k === 'k') { e.preventDefault(); this.setState((s) => ({ cursor: Math.max(0, s.cursor - 1) })); }
-			else if (k === ' ') { e.preventDefault(); this.toggleMark(); }
-			else if (k === 'a' || k === 'A') { e.preventDefault(); this.toggleAll(); }
-			else if (k === 'Enter') { e.preventDefault(); this.requestDelete(); }
-			else if (k === 's' || k === 'S') { e.preventDefault(); this.cycleSort(); }
-			else if (k === 'q' || k === 'Q') { e.preventDefault(); this.setState({ phase: 'done' }); }
-		}
-
-		onClick(e: MouseEvent) {
-			this.el.focus({ preventScroll: true });
-			const target = e.target as HTMLElement;
-			const actEl = target.closest('[data-act]') as HTMLElement | null;
-			if (actEl) {
-				const act = actEl.dataset.act;
-				const ready = this.state.phase === 'ready';
-				if (act === 'space' && ready) this.toggleMark();
-				else if (act === 'all' && ready) this.toggleAll();
-				else if (act === 'delete' && ready) this.requestDelete();
-				else if (act === 'sort' && ready) this.cycleSort();
-				else if (act === 'quit' && ready) this.setState({ phase: 'done' });
-				else if (act === 'confirm') this.performDelete();
-				else if (act === 'cancel') this.setState({ showConfirm: false, confirmIds: [] });
-				else if (act === 'restart') this.startScan();
-				return;
-			}
-			const rowEl = target.closest('[data-row]') as HTMLElement | null;
-			if (rowEl && this.state.phase === 'ready') {
-				this.rowClick(rowEl.dataset.id as string, Number(rowEl.dataset.row));
-			}
-		}
-
-		toggleMark() {
-			const cur = this.visible()[this.state.cursor];
-			if (!cur) return;
-			this.setState((s) => {
-				const m = s.marks.slice();
-				const i = m.indexOf(cur.id);
-				if (i >= 0) m.splice(i, 1);
-				else m.push(cur.id);
-				return { marks: m };
-			});
-		}
-
-		toggleAll() {
-			const ids = this.visible().map((f) => f.id);
-			this.setState((s) => {
-				const all = ids.length > 0 && ids.every((id) => s.marks.indexOf(id) >= 0);
-				return { marks: all ? [] : ids.slice() };
-			});
-		}
-
-		rowClick(id: string, i: number) {
-			this.setState((s) => {
-				if (s.cursor === i) {
-					const m = s.marks.slice();
-					const idx = m.indexOf(id);
-					if (idx >= 0) m.splice(idx, 1);
-					else m.push(id);
-					return { marks: m };
-				}
-				return { cursor: i };
-			});
-		}
-
-		cycleSort() {
-			const order: State['sort'][] = ['size', 'date', 'name'];
-			this.setState((s) => ({ sort: order[(order.indexOf(s.sort) + 1) % 3], cursor: 0 }));
-		}
-
-		requestDelete() {
-			const vis = this.visible();
-			let ids: string[];
-			if (this.state.marks.length) ids = this.state.marks.slice();
-			else {
-				const cur = vis[this.state.cursor];
-				if (!cur) return;
-				ids = [cur.id];
-			}
-			this.setState({ showConfirm: true, confirmIds: ids });
-		}
-
-		performDelete() {
-			this.setState((s) => {
-				const ids = s.confirmIds;
-				const del = s.deleted.concat(ids);
-				const freedAdd = MASTER.filter((f) => ids.indexOf(f.id) >= 0).reduce((a, f) => a + f.sizeMB, 0);
-				const marks = s.marks.filter((id) => ids.indexOf(id) < 0);
-				const remaining = MASTER.filter((f) => del.indexOf(f.id) < 0);
-				const cursor = Math.min(s.cursor, Math.max(0, remaining.length - 1));
-				const phase = remaining.length === 0 ? 'done' : s.phase;
-				return { deleted: del, freed: s.freed + freedAdd, marks, cursor, showConfirm: false, confirmIds: [], phase };
-			});
-		}
-
-		render() {
-			const st = this.state;
-			const scanning = st.phase === 'scanning';
-			const vis = this.visible();
-			const shown = scanning ? vis.slice(0, st.revealed) : vis;
-
-			const rowsHtml = shown
-				.map((f, i) => {
-					const isCursor = !scanning && i === st.cursor;
-					const marked = st.marks.indexOf(f.id) >= 0;
-					const old = f.ageMonths > 6;
-					const rowStyle =
-						`display:grid;grid-template-columns:1fr 118px 84px;gap:16px;align-items:center;font-size:13px;cursor:pointer;` +
-						`padding:${isCursor ? '9px 28px' : '9px 0'};margin:${isCursor ? '0 -28px' : '0'};` +
-						`background:${isCursor ? '#242a32' : 'transparent'}`;
-					const cur = marked ? '◉' : isCursor ? '▸' : '';
-					const nameColor = marked ? ACCENT : isCursor ? '#ffffff' : '#e6e8ec';
-					const modColor = isCursor ? '#c8ccd2' : old ? '#e0b877' : '#8b909a';
-					const sizeColor = marked || isCursor ? ACCENT : '#c8ccd2';
-					const bold = marked || isCursor ? '600' : '400';
-					return (
-						`<div class="nm-cols" data-row="${i}" data-id="${f.id}" style="${rowStyle}">` +
-						`<span style="display:inline-flex;align-items:center;min-width:0">` +
-						`<span style="width:14px;flex:none;color:${ACCENT}">${cur}</span>` +
-						`<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">` +
-						`<span style="color:#5c626c">${f.prefix}</span>` +
-						`<span style="color:${nameColor};font-weight:${bold}">${f.name}</span>` +
-						`<span style="color:#5c626c">/node_modules</span>` +
-						`</span></span>` +
-						`<span class="nm-mod" style="text-align:right;color:${modColor}">${f.modified}</span>` +
-						`<span style="text-align:right;color:${sizeColor};font-weight:${bold}">${this.fmt(f.sizeMB)}</span>` +
-						`</div>`
-					);
-				})
-				.join('');
-
-			const markedSum = MASTER.filter((f) => st.marks.indexOf(f.id) >= 0).reduce((a, f) => a + f.sizeMB, 0);
-			const reclaimSum = (scanning ? shown : vis).reduce((a, f) => a + f.sizeMB, 0);
-			let statusText;
-			if (scanning) statusText = 'Scanning… ' + st.revealed + ' of ' + vis.length + ' found';
-			else if (st.marks.length) statusText = st.marks.length + ' selected · ' + this.fmt(markedSum) + ' to free';
-			else statusText = 'Scan complete · ' + vis.length + ' node_modules found in ~/projects';
-
-			const glyph = scanning ? FRAMES[st.scanFrame % FRAMES.length] : '◈';
-			const sortPath = st.sort === 'name' ? '▼' : '';
-			const sortMod = st.sort === 'date' ? '▼' : '';
-			const sortSize = st.sort === 'size' ? '▼' : '';
-			const deleteLabel = st.marks.length ? 'delete ' + st.marks.length : 'delete';
-			const selectAllLabel = vis.length > 0 && vis.every((f) => st.marks.indexOf(f.id) >= 0) ? 'clear' : 'all';
-
-			const dot = `<span style="width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.13)"></span>`;
-			const fnav = (act: string, label: string, extra = '') =>
-				`<span data-act="${act}" style="cursor:pointer${extra}"><b style="color:#8b909a;font-weight:600">${label}</b>`;
-
-			const main =
-				`<div style="display:flex;align-items:center;gap:8px;padding:13px 16px;background:#1b1e23;border-bottom:1px solid rgba(255,255,255,.05)">` +
-				`<div style="display:flex;gap:7px">${dot}${dot}${dot}</div>` +
-				`<span style="flex:1;text-align:center;font-size:12px;color:#8b909a">nukenpm — ~/projects</span>` +
-				`<span style="width:52px"></span></div>` +
-				`<div class="nm-body" style="padding:26px 28px 22px;color:#e6e8ec">` +
-				`<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px">` +
-				`<div style="min-width:0">` +
-				`<div style="font-size:13px;letter-spacing:.4px;margin-bottom:7px;display:flex;align-items:center;gap:8px">` +
-				`<span style="color:${ACCENT};display:inline-block;font-size:13px">${glyph}</span>` +
-				`<span style="color:#e6e8ec">nukenpm</span><span style="color:#5c626c">v${version}</span></div>` +
-				`<div style="font-size:12px;color:#8b909a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${statusText}</div></div>` +
-				`<div style="text-align:right;flex:none;padding-left:16px">` +
-				`<div style="font-size:10.5px;color:#5c626c;letter-spacing:1px;margin-bottom:3px">RECLAIMABLE</div>` +
-				`<div style="font-size:27px;color:${ACCENT};font-weight:500;line-height:1">${this.fmt(reclaimSum)}</div></div></div>` +
-				`<div style="height:3px;border-radius:2px;background:rgba(255,255,255,.06);margin-bottom:24px;overflow:hidden">` +
-				`<div style="height:100%;width:${st.progress * 100}%;background:${ACCENT};opacity:${scanning ? 0.9 : 0.55};transition:width .1s linear"></div></div>` +
-				`<div class="nm-cols" style="display:grid;grid-template-columns:1fr 118px 84px;gap:16px;font-size:10.5px;color:#5c626c;padding:0 0 9px;letter-spacing:.8px">` +
-				`<span>PATH ${sortPath}</span><span class="nm-mod" style="text-align:right">MODIFIED ${sortMod}</span><span style="text-align:right">SIZE ${sortSize}</span></div>` +
-				`<div style="min-height:266px">${rowsHtml}</div>` +
-				`<div class="nm-hints" style="display:flex;gap:22px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05);font-size:11px;color:#5c626c">` +
-				`<span><b style="color:#8b909a;font-weight:600">↑↓</b> navigate</span>` +
-				`${fnav('space', 'space')} select</span>` +
-				`${fnav('all', 'a')} ${selectAllLabel}</span>` +
-				`${fnav('delete', '⏎')} ${deleteLabel}</span>` +
-				`${fnav('sort', 's')} sort: ${st.sort}</span>` +
-				`${fnav('quit', 'q', ';margin-left:auto')} quit</span>` +
-				`</div></div>`;
-
-			let overlay = '';
-			if (st.showConfirm) {
-				const cFolders = MASTER.filter((f) => st.confirmIds.indexOf(f.id) >= 0);
-				const cSize = cFolders.reduce((a, f) => a + f.sizeMB, 0);
-				const cFiles = cFolders.reduce((a, f) => a + f.files, 0);
-				const multi = cFolders.length > 1;
-				const one = cFolders[0] || { prefix: '', name: '' };
-				const detail = multi
-					? `<div style="font-size:12px;color:#c8ccd2;line-height:1.5;margin-bottom:8px">${cFolders.length} node_modules folders selected</div>`
-					: `<div style="font-size:12px;color:#8b909a;word-break:break-all;line-height:1.5;margin-bottom:8px"><span style="color:#5c626c">${one.prefix}</span>${one.name}<span style="color:#5c626c">/node_modules</span></div>`;
-				overlay =
-					`<div style="position:absolute;inset:0;background:rgba(8,9,11,.72);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:nmfade .12s ease-out">` +
-					`<div style="width:440px;max-width:100%;background:#181b20;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 26px 24px;box-shadow:0 20px 50px rgba(0,0,0,.5)">` +
-					`<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">` +
-					`<span style="width:26px;height:26px;flex:none;border-radius:50%;border:1.5px solid #e08a7a;color:#e08a7a;display:flex;align-items:center;justify-content:center;font-size:14px">!</span>` +
-					`<span style="font-size:14px;color:#e6e8ec">${multi ? 'Delete ' + cFolders.length + ' folders?' : 'Delete this folder?'}</span></div>` +
-					`<div style="padding:14px 16px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);margin-bottom:20px">` +
-					detail +
-					`<div style="display:flex;gap:20px;font-size:12px"><span style="color:${ACCENT};font-weight:500">${this.fmt(cSize)}</span><span style="color:#5c626c">${cFiles.toLocaleString()} files</span></div></div>` +
-					`<div style="font-size:11.5px;color:#5c626c;line-height:1.6;margin-bottom:22px">This permanently removes the folder from disk. It can be regenerated with <span style="color:#8b909a">npm install</span>.</div>` +
-					`<div style="display:flex;gap:10px">` +
-					`<div data-act="confirm" style="flex:1;padding:11px;text-align:center;border-radius:8px;background:#e08a7a;color:#14161a;font-size:12.5px;font-weight:600;cursor:pointer">⏎  Delete</div>` +
-					`<div data-act="cancel" style="flex:1;padding:11px;text-align:center;border-radius:8px;border:1px solid rgba(255,255,255,.12);color:#8b909a;font-size:12.5px;cursor:pointer">esc  Cancel</div>` +
-					`</div></div></div>`;
-			} else if (st.phase === 'done') {
-				overlay =
-					`<div style="position:absolute;inset:0;background:rgba(8,9,11,.86);backdrop-filter:blur(2px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;animation:nmfade .14s ease-out">` +
-					`<div style="width:56px;height:56px;border-radius:50%;border:2px solid ${ACCENT};color:${ACCENT};display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:20px">✓</div>` +
-					`<div style="font-size:12px;color:#8b909a;letter-spacing:1px;margin-bottom:6px">SESSION COMPLETE</div>` +
-					`<div style="font-size:30px;color:${ACCENT};font-weight:500;margin-bottom:6px">${this.fmt(st.freed)} freed</div>` +
-					`<div style="font-size:12.5px;color:#8b909a;margin-bottom:28px">${st.deleted.length}${st.deleted.length === 1 ? ' folder removed' : ' folders removed'}</div>` +
-					`<div data-act="restart" style="padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,.14);color:#c8ccd2;font-size:12.5px;cursor:pointer"><b style="color:#e6e8ec;font-weight:600">r</b>  scan again</div>` +
-					`</div>`;
-			}
-
-			this.el.innerHTML = main + overlay;
-		}
-	}
-
-	const el = document.getElementById('nm-term');
-	if (el) new NmTerm(el);
-</script>
+<script src="../scripts/nm-term.ts"></script>

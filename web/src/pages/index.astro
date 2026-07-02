@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import InstallCommand from '../components/InstallCommand.astro';
 import Terminal from '../components/Terminal.astro';
 import { SITE } from '../config/site';
 
@@ -31,7 +32,7 @@ const keys = [
 	{ key: 'y / n', action: 'Confirm / cancel in the dialog' },
 ];
 
-const { install, version } = SITE;
+const { version } = SITE;
 const keyStyle =
 	"font-family:'JetBrains Mono',monospace;font-size:12px;color:#c8ccd2;background:#1b1e23;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 9px;white-space:nowrap;flex:none;min-width:104px;text-align:center";
 ---
@@ -106,22 +107,7 @@ const keyStyle =
 					don't need.
 				</p>
 
-				<!-- install command -->
-				<div style="display:flex;justify-content:center;margin-bottom:14px;padding:0 16px">
-					<div
-						class="install-box"
-						style="display:flex;align-items:center;gap:14px;max-width:100%;background:#14161a;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px;box-shadow:0 16px 40px rgba(0,0,0,.35)"
-					>
-						<span style="color:#5c626c;user-select:none;flex:none">$</span>
-						<span class="install-cmd" style="color:#e6e8ec;min-width:0;word-break:break-all">{install}</span>
-						<button
-							class="copy-btn"
-							data-copy={install}
-							aria-label="Copy install command"
-							style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s">copy</button
-						>
-					</div>
-				</div>
+				<InstallCommand variant="hero" />
 				<div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#5c626c">
 					macOS &amp; Linux · no other tools required
 				</div>
@@ -272,22 +258,7 @@ const keyStyle =
 							style="font-family:'JetBrains Mono',monospace;color:#c8ccd2">brew upgrade nukenpm</span
 						>.
 					</p>
-					<div style="display:flex;justify-content:center;padding:0 16px">
-						<div
-							class="install-box"
-							style="display:flex;align-items:center;gap:14px;max-width:100%;background:#0d0e11;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 15px 13px 18px;font-family:'JetBrains Mono',monospace;font-size:14px"
-						>
-							<span style="color:#5c626c;user-select:none;flex:none">$</span>
-							<span class="install-cmd" style="color:#e6e8ec;min-width:0;word-break:break-all">{install}</span>
-							<button
-								class="copy-btn"
-								data-copy={install}
-								aria-label="Copy install command"
-								style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s"
-								>copy</button
-							>
-						</div>
-					</div>
+					<InstallCommand variant="cta" />
 				</div>
 			</section>
 			</main>
@@ -303,7 +274,7 @@ const keyStyle =
 					>Built in Rust with <a
 						href="https://github.com/ratatui/ratatui"
 						target="_blank"
-						rel="noopener"
+						rel="noopener noreferrer"
 						style="color:#8b909a;text-decoration:none">ratatui</a
 					></span
 				>
@@ -316,6 +287,8 @@ const keyStyle =
 				>
 				<span>MIT</span>
 			</footer>
+
+			<div id="copy-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 		</div>
 
 		<style is:global>
@@ -332,6 +305,17 @@ const keyStyle =
 			}
 			a {
 				color: inherit;
+			}
+			.sr-only {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border: 0;
 			}
 			.navlink:hover {
 				color: #e6e8ec;
@@ -351,38 +335,14 @@ const keyStyle =
 				color: #e6e8ec;
 				background: rgba(255, 255, 255, 0.04);
 			}
-			@keyframes nmblink {
-				0%,
-				49% {
-					opacity: 1;
-				}
-				50%,
-				100% {
-					opacity: 0;
-				}
-			}
-			@keyframes nmfloat {
-				0%,
-				100% {
-					transform: translateY(0);
-				}
-				50% {
-					transform: translateY(-5px);
-				}
-			}
-			@keyframes nmfade {
-				from {
-					opacity: 0;
-					transform: translateY(3px);
-				}
-				to {
-					opacity: 1;
-					transform: none;
-				}
-			}
-			@keyframes nmspin {
-				to {
-					transform: rotate(360deg);
+			@media (prefers-reduced-motion: reduce) {
+				*,
+				*::before,
+				*::after {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					transition-duration: 0.01ms !important;
+					scroll-behavior: auto !important;
 				}
 			}
 			@media (max-width: 720px) {
@@ -418,6 +378,8 @@ const keyStyle =
 		</style>
 
 		<script>
+			import { wireCopyButtons } from '../scripts/copy';
+
 			const navToggle = document.querySelector<HTMLButtonElement>('.nav-toggle');
 			const navMenu = document.getElementById('nav-mobile-menu');
 			if (navToggle && navMenu) {
@@ -437,25 +399,6 @@ const keyStyle =
 				});
 			}
 
-			document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
-				let timer: ReturnType<typeof setTimeout>;
-				btn.addEventListener('click', async () => {
-					const text = btn.dataset.copy || '';
-					try {
-						await navigator.clipboard.writeText(text);
-					} catch {
-						/* clipboard unavailable */
-					}
-					btn.textContent = 'copied ✓';
-					btn.style.background = 'rgba(95,208,197,.16)';
-					btn.style.color = '#5fd0c5';
-					clearTimeout(timer);
-					timer = setTimeout(() => {
-						btn.textContent = 'copy';
-						btn.style.background = '#5fd0c5';
-						btn.style.color = '#0d0e11';
-					}, 1600);
-				});
-			});
+			wireCopyButtons(document.getElementById('copy-status'));
 		</script>
 </BaseLayout>
