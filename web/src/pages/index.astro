@@ -1,4 +1,5 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
 import Terminal from '../components/Terminal.astro';
 
 const features = [
@@ -34,27 +35,8 @@ const keyStyle =
 	"font-family:'JetBrains Mono',monospace;font-size:12px;color:#c8ccd2;background:#1b1e23;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 9px;white-space:nowrap;flex:none;min-width:104px;text-align:center";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="generator" content={Astro.generator} />
-		<meta
-			name="description"
-			content="nukenpm — a fast, keyboard-driven terminal app that finds and wipes the node_modules (and other build folders) eating your disk."
-		/>
-		<title>nukenpm — Nuke the node_modules eating your disk</title>
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
-			rel="stylesheet"
-		/>
-	</head>
-	<body>
-		<div style="min-height:100vh;background:radial-gradient(1100px 620px at 50% -8%,#16191f,#0d0e11 62%)">
+<BaseLayout>
+	<div style="min-height:100vh;background:radial-gradient(1100px 620px at 50% -8%,#16191f,#0d0e11 62%)">
 			<!-- NAV -->
 			<nav
 				class="nav"
@@ -79,6 +61,7 @@ const keyStyle =
 				>
 			</nav>
 
+			<main>
 			<!-- HERO -->
 			<header style="max-width:1080px;margin:0 auto;padding:52px 32px 40px;text-align:center">
 				<div
@@ -107,6 +90,7 @@ const keyStyle =
 						<button
 							class="copy-btn"
 							data-copy={install}
+							aria-label="Copy install command"
 							style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s">copy</button
 						>
 					</div>
@@ -270,6 +254,7 @@ const keyStyle =
 							<button
 								class="copy-btn"
 								data-copy={install}
+								aria-label="Copy install command"
 								style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;border-radius:6px;padding:6px 12px;margin-left:2px;background:#5fd0c5;color:#0d0e11;transition:background .15s"
 								>copy</button
 							>
@@ -277,6 +262,7 @@ const keyStyle =
 					</div>
 				</div>
 			</section>
+			</main>
 
 			<!-- FOOTER -->
 			<footer
@@ -402,5 +388,4 @@ const keyStyle =
 				});
 			});
 		</script>
-	</body>
-</html>
+</BaseLayout>
