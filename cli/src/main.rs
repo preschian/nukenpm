@@ -37,7 +37,20 @@ struct Cli {
 
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
-    let root = cli.path.canonicalize().unwrap_or(cli.path);
+
+    // Fail fast on a bad path: without this a typo would still open the TUI
+    // and cheerfully report "nothing found".
+    let root = match cli.path.canonicalize() {
+        Ok(path) if path.is_dir() => path,
+        Ok(path) => {
+            eprintln!("nukenpm: {} is not a directory", path.display());
+            std::process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("nukenpm: cannot access {}: {e}", cli.path.display());
+            std::process::exit(1);
+        }
+    };
 
     let (tx, rx) = mpsc::channel::<Msg>();
 
