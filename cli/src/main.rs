@@ -1,6 +1,7 @@
 //! nukenpm — an interactive TUI to find and nuke `node_modules` directories.
 
 mod app;
+mod deleter;
 mod fs_utils;
 mod scanner;
 mod ui;

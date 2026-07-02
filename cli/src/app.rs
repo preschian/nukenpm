@@ -2,12 +2,12 @@
 
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::thread;
 use std::time::SystemTime;
 
+use crate::deleter;
 use crate::scanner::{self, Msg};
 
 /// Lifecycle of a single discovered directory.
@@ -333,8 +333,10 @@ impl App {
         self.confirm = None;
     }
 
-    /// Spawn a deleter thread for each path and mark it as in-flight.
+    /// Mark the paths as in-flight and hand the whole batch to the shared
+    /// deletion pool, which unlinks files across folders concurrently.
     fn perform_delete(&mut self, paths: Vec<PathBuf>) {
+        let mut targets = Vec::with_capacity(paths.len());
         for path in &paths {
             self.marks.remove(path);
             let Some(entry) = self
@@ -345,18 +347,10 @@ impl App {
                 continue;
             };
             entry.status = EntryStatus::Deleting;
-            let target = entry.path.clone();
-            let tx = self.tx.clone();
-            thread::spawn(move || {
-                let msg = match fs::remove_dir_all(&target) {
-                    Ok(()) => Msg::Deleted { path: target },
-                    Err(e) => Msg::DeleteError {
-                        path: target,
-                        error: e.to_string(),
-                    },
-                };
-                let _ = tx.send(msg);
-            });
+            targets.push(entry.path.clone());
+        }
+        if !targets.is_empty() {
+            deleter::spawn_delete(targets, self.tx.clone());
         }
         self.confirm = None;
         self.clamp_cursor();
